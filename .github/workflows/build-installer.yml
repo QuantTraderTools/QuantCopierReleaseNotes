@@ -57,6 +57,39 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Validate required secrets (frontend/backend)
+        shell: pwsh
+        run: |
+          if (-not "${{ secrets.FRONTEND_REPO_TOKEN }}") { Write-Error "FRONTEND_REPO_TOKEN is missing"; exit 1 }
+          if (-not "${{ secrets.BACKEND_REPO_TOKEN }}")  { Write-Error "BACKEND_REPO_TOKEN is missing";  exit 1 }
+          Write-Host "Secrets present: FRONTEND_REPO_TOKEN ✓, BACKEND_REPO_TOKEN ✓"
+
+      - name: Probe frontend repo access (no secret leakage)
+        shell: pwsh
+        env:
+          FRONTEND_REPO: ${{ env.FRONTEND_REPO }}
+          FRONTEND_TOKEN: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $url = "https://api.github.com/repos/$env:FRONTEND_REPO"
+          $headers = @{ "Authorization" = "token $env:FRONTEND_TOKEN"; "User-Agent" = "gha-check" }
+          $resp = Invoke-WebRequest -Uri $url -Headers $headers -Method GET -UseBasicParsing -ErrorAction Stop
+          if ($resp.StatusCode -ne 200) { Write-Error "Frontend repo access failed: HTTP $($resp.StatusCode)"; exit 1 }
+          Write-Host "Frontend repo access ok (HTTP 200)."
+
+      - name: Probe backend repo access (no secret leakage)
+        shell: pwsh
+        env:
+          BACKEND_REPO: ${{ env.BACKEND_REPO }}
+          BACKEND_TOKEN: ${{ secrets.BACKEND_REPO_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $url = "https://api.github.com/repos/$env:BACKEND_REPO"
+          $headers = @{ "Authorization" = "token $env:BACKEND_TOKEN"; "User-Agent" = "gha-check" }
+          $resp = Invoke-WebRequest -Uri $url -Headers $headers -Method GET -UseBasicParsing -ErrorAction Stop
+          if ($resp.StatusCode -ne 200) { Write-Error "Backend repo access failed: HTTP $($resp.StatusCode)"; exit 1 }
+          Write-Host "Backend repo access ok (HTTP 200)."
+
       - name: Checkout frontend app
         uses: actions/checkout@v4
         with:
@@ -64,7 +97,7 @@ jobs:
           ref: ${{ env.FRONTEND_REF }}
           path: ${{ env.FRONTEND_PATH }}
           fetch-depth: 1
-          token: ${{ secrets.FRONTEND_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.FRONTEND_REPO_TOKEN }}
 
       - name: Checkout backend sidecar repo
         uses: actions/checkout@v4
@@ -73,7 +106,7 @@ jobs:
           ref: ${{ env.BACKEND_REF }}
           path: ${{ env.BACKEND_PATH }}
           fetch-depth: 1
-          token: ${{ secrets.BACKEND_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.BACKEND_REPO_TOKEN }}
 
       # ============================================================
       # 2. Setup Node.js with npm cache
