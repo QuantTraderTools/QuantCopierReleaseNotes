@@ -12,7 +12,7 @@ import { Moon, Sun, X } from 'lucide-react';
 
 export function Header() {
   const getTelegramStyles = () => {
-    return { width: '150px', opacity: 1 }; 
+    return { width: '150px', opacity: 1 };
   };
 
   return (
@@ -22,7 +22,7 @@ export function Header() {
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-slate-800 to-blue-600 dark:from-white dark:to-blue-400 bg-clip-text text-transparent mb-0 tracking-tight">
             Release Notes
           </h1>
-          
+
           <div className="flex items-center justify-center -mt-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-center">
               <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />

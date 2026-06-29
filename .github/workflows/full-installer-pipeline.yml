@@ -24,8 +24,8 @@ env:
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
   FRONTEND_REF: ${{ vars.FRONTEND_REF || 'main' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'https://github.com/diliprk/quantcopier' }}
-  BACKEND_REF: ${{ vars.BACKEND_REF || 'main' }}
+  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'diliprk/quantcopier' }}
+  BACKEND_REF: ${{ vars.BACKEND_REF || 'telegram' }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
 

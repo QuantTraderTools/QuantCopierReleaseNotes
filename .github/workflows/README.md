@@ -36,7 +36,7 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 - `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierUI`
 - `FRONTEND_REF` - Default: `main`
 - `BACKEND_REPO` - Default: `diliprk/quantcopier`
-- `BACKEND_REF` - Default: `main`
+- `BACKEND_REF` - Default: `telegram`
 
 **Output:**
 - Installer uploaded to: `gs://<bucket>/installers/<tag>/<filename>.exe`
@@ -123,7 +123,7 @@ To override default repo/branch:
 | `FRONTEND_REPO` | `QuantTraderTools/QuantCopierUI` | `yourorg/custom-frontend` |
 | `FRONTEND_REF` | `main` | `release-v2.0` |
 | `BACKEND_REPO` | `diliprk/quantcopier` | `yourorg/custom-backend` |
-| `BACKEND_REF` | `main` | `dev` |
+| `BACKEND_REF` | `telegram` | `dev` |
 
 ### 6. Test the Workflow
 
