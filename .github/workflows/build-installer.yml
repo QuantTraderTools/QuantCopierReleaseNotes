@@ -39,7 +39,7 @@ env:
   FRONTEND_REPO: ${{ github.event.inputs.frontend_repo || vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopieEUI' }}
   FRONTEND_REF: ${{ github.event.inputs.frontend_ref || vars.FRONTEND_REF || 'telegram' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ github.event.inputs.backend_repo || vars.BACKEND_REPO || 'diliprk/quantcopier' }}
+  BACKEND_REPO: ${{ 'diliprk/quantcopier' || github.event.inputs.backend_repo || vars.BACKEND_REPO }}
   BACKEND_REF: ${{ github.event.inputs.backend_ref || vars.BACKEND_REF || 'telegram' }}
   BACKEND_PATH: "quantcopier"
 
