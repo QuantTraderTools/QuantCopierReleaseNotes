@@ -5,7 +5,6 @@ on:
   workflow_run:
     workflows:
       - "Full Windows Installer Pipeline"
-      - "Build and Upload Windows Installer"
     types:
       - completed
     branches:
