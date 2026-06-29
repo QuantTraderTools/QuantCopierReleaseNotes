@@ -39,9 +39,9 @@ env:
   FRONTEND_REPO: ${{ github.event.inputs.frontend_repo || vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierTelegramUI' }}
   FRONTEND_REF: ${{ github.event.inputs.frontend_ref || vars.FRONTEND_REF || 'main' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ github.event.inputs.backend_repo || vars.BACKEND_REPO || 'QuantTraderTools/qcdemo' }}
+  BACKEND_REPO: ${{ github.event.inputs.backend_repo || vars.BACKEND_REPO || 'diliprk/quantcopier' }}
   BACKEND_REF: ${{ github.event.inputs.backend_ref || vars.BACKEND_REF || 'main' }}
-  BACKEND_PATH: "backend"
+  BACKEND_PATH: "quantcopier"
 
 jobs:
   build-and-upload:
@@ -107,6 +107,120 @@ jobs:
           path: ${{ env.BACKEND_PATH }}
           fetch-depth: 1
           token: ${{ secrets.BACKEND_REPO_TOKEN }}
+
+      # ============================================================
+      # 1.5. Extract version and apply to PyInstaller & Inno Setup
+      # ============================================================
+      - name: Extract and apply version
+        id: version
+        shell: pwsh
+        run: |
+          # Priority 1: Read from markdown file (source of truth)
+          $markdownFile = "md_docs/DEPLOYMENT.md"
+          $version = $null
+          
+          if (Test-Path $markdownFile) {
+            $content = Get-Content $markdownFile -Raw
+            if ($content -match 'version:\s*\D*(\d+\.\d+\.\d+)') {
+              $version = $matches[1]
+              Write-Host "✓ Found version in markdown: $version"
+            }
+          }
+          
+          # Priority 2: Extract from GitHub release tag
+          if (-not $version) {
+            if ("${{ github.event_name }}" -eq "release") {
+              $tag = "${{ github.event.release.tag_name }}"
+              if ($tag -match "^v?(\d+\.\d+\.\d+.*)$") {
+                $version = $matches[1]
+                Write-Host "✓ Found version in release tag: $version"
+              }
+            }
+          }
+          
+          # Priority 3: Fallback
+          if (-not $version) {
+            $version = "1.0.0"
+            Write-Host "⚠ Using default version: $version"
+          }
+          
+          Write-Host "📦 Final version: $version"
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          
+          # Update PyInstaller spec file
+          $specFile = "${{ env.BACKEND_PATH }}/QuantCopierAPI.spec"
+          if (Test-Path $specFile) {
+            $content = Get-Content $specFile -Raw
+            if ($content -match "version\s*=\s*'api_version_info") {
+              Write-Host "✓ PyInstaller spec uses api_version_info.txt (version patched there)"
+            } elseif ($content -match 'version\s*=') {
+              $content = $content -replace "version\s*=\s*'[^']*'", "version='api_version_info.txt'"
+              Set-Content $specFile -Value $content -Encoding UTF8 -NoNewline
+              Write-Host "✓ Updated PyInstaller spec to use api_version_info.txt"
+            } else {
+              $content = $content -replace "(name='QuantCopierAPI',)", "name='QuantCopierAPI',`n    version='api_version_info.txt',"
+              Set-Content $specFile -Value $content -Encoding UTF8 -NoNewline
+              Write-Host "✓ Added version='api_version_info.txt' to PyInstaller spec"
+            }
+          }
+
+          # Update api_version_info.txt (PyInstaller Windows PE metadata)
+          $versionInfoFile = "${{ env.BACKEND_PATH }}/api_version_info.txt"
+          if (Test-Path $versionInfoFile) {
+            $parts = $version -split '\.'
+            $major = if ($parts.Length -gt 0) { $parts[0] } else { '1' }
+            $minor = if ($parts.Length -gt 1) { $parts[1] } else { '0' }
+            $patch = if ($parts.Length -gt 2) { $parts[2] } else { '0' }
+            $tuple = "($major, $minor, $patch, 0)"
+            $vi = Get-Content $versionInfoFile -Raw
+            $vi = $vi -replace 'filevers\s*=\s*\([^)]+\)', "filevers=$tuple"
+            $vi = $vi -replace 'prodvers\s*=\s*\([^)]+\)', "prodvers=$tuple"
+            $vi = $vi -replace "(StringStruct\(u'FileVersion'[^)]*\))", "StringStruct(u'FileVersion',      u'$version.0')"
+            $vi = $vi -replace "(StringStruct\(u'ProductVersion'[^)]*\))", "StringStruct(u'ProductVersion',   u'$version')"
+            Set-Content $versionInfoFile -Value $vi -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated api_version_info.txt: version=$version"
+          }
+
+          # Update Inno Setup script
+          $issFile = "${{ env.FRONTEND_PATH }}/QCTelegramMT5_SetupExe_Spec.iss"
+          if (Test-Path $issFile) {
+            $content = Get-Content $issFile -Raw
+            $content = $content -replace '#define MyAppVersion ".+?"', ('#define MyAppVersion "' + $version + '"')
+            if ($content -match '#define MyFileVersion') {
+              $content = $content -replace '#define MyFileVersion ".+?"', ('#define MyFileVersion "' + $version + '"')
+            } else {
+              $content = $content -replace "(#define MyAppVersion ""$version"")", "`$1`n#define MyFileVersion ""$version"""
+            }
+            Set-Content $issFile -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated Inno Setup: version=$version"
+          }
+
+          # Update tauri.conf.json (embeds into QuantCopierTelegramUI.exe PE header)
+          $tauriConf = "${{ env.FRONTEND_PATH }}/src-tauri/tauri.conf.json"
+          if (Test-Path $tauriConf) {
+            $content = Get-Content $tauriConf -Raw
+            $content = $content -replace '"version":\s*"[^"]+"', ('"version": "' + $version + '"')
+            Set-Content $tauriConf -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated tauri.conf.json: version=$version"
+          }
+
+          # Update Cargo.toml (must match tauri.conf.json)
+          $cargoToml = "${{ env.FRONTEND_PATH }}/src-tauri/Cargo.toml"
+          if (Test-Path $cargoToml) {
+            $content = Get-Content $cargoToml -Raw
+            $content = $content -replace '(?m)^(version\s*=\s*)"[^"]+"', "`${1}""$version"""
+            Set-Content $cargoToml -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated Cargo.toml: version=$version"
+          }
+
+          # Update package.json
+          $pkgJson = "${{ env.FRONTEND_PATH }}/package.json"
+          if (Test-Path $pkgJson) {
+            $pkg = Get-Content $pkgJson -Raw | ConvertFrom-Json
+            $pkg.version = $version
+            $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgJson -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated package.json: version=$version"
+          }
 
       # ============================================================
       # 2. Setup Node.js with npm cache
@@ -180,6 +294,23 @@ jobs:
           echo "SIDECAR_NAME=$($bin.Name)" >> $env:GITHUB_OUTPUT
           Write-Host "Found sidecar: $($bin.FullName)"
 
+      - name: Install Python pefile library for version embedding
+        shell: pwsh
+        run: |
+          python -m pip install pefile --quiet
+          Write-Host "✓ pefile library installed"
+
+      - name: Embed version metadata in EXE (Windows Properties)
+        shell: pwsh
+        run: |
+          $exePath = "${{ steps.sidecar.outputs.SIDECAR_PATH }}"
+          $version = "${{ steps.version.outputs.VERSION }}"
+          Write-Host "Version metadata: $version (embedded in PyInstaller spec)"
+          Write-Host "Note: Final version will be visible in installer properties"
+          # Version is already in the PyInstaller spec file
+          # Inno Setup will embed it properly in the final installer
+          # Skipping direct PE modification to avoid file locking issues
+
       - name: Copy sidecar into Tauri binaries folder
         shell: pwsh
         run: |
@@ -188,6 +319,14 @@ jobs:
           $targetName = "QuantCopierAPI-x86_64-pc-windows-msvc.exe"
           Copy-Item "${{ steps.sidecar.outputs.SIDECAR_PATH }}" (Join-Path $targetDir $targetName) -Force
           Write-Host "Copied sidecar to $targetDir\$targetName"
+
+      - name: Upload QuantCopierAPI.exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantCopierAPI-v${{ steps.version.outputs.VERSION }}
+          path: ${{ steps.sidecar.outputs.SIDECAR_PATH }}
+          retention-days: 90
+          if-no-files-found: warn
 
       # ============================================================
       # 7. Install Node.js dependencies
@@ -279,17 +418,17 @@ jobs:
       - name: Setup Firebase credentials
         shell: pwsh
         run: |
-          if (-not "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}") {
+          $b64 = "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
+          if ([string]::IsNullOrWhiteSpace($b64)) {
             Write-Error "ERROR: FIREBASE_SERVICE_ACCOUNT_KEY secret is not set"
             exit 1
           }
 
           $keyPath = "$env:RUNNER_TEMP\serviceAccount.json"
-          # Write raw JSON to file without echoing contents
-          Set-Content -Path $keyPath -Value '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' -Encoding UTF8 -NoNewline
-
-          if (-not (Test-Path $keyPath)) {
-            Write-Error "ERROR: Failed to create Firebase credentials file"
+          try {
+            [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($b64))
+          } catch {
+            Write-Error "ERROR: Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY. Ensure it is valid Base64."
             exit 1
           }
 
@@ -322,7 +461,7 @@ jobs:
             exit 1
           }
           
-          $destPath = "installers/${{ steps.get_tag.outputs.RELEASE_TAG }}/$env:INSTALLER_NAME"
+          $destPath = "Telegram/installers/${{ steps.get_tag.outputs.RELEASE_TAG }}/$env:INSTALLER_NAME"
           
           Write-Host "Source: $env:INSTALLER_PATH"
           Write-Host "Destination: gs://$bucket/$destPath"

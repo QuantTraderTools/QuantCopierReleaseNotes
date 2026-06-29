@@ -1,5 +1,23 @@
 # QuantCopier Release Notes Deployment Guide
 
+> **Current Version: 1.3.5**
+
+## How to Release a New Version
+
+1. **Update version number below** ↓
+2. Commit and push to `main`
+3. Installer workflow automatically builds with new version
+4. After build completes, GitHub Release is created automatically
+5. Release notes site fetches and displays new version
+
+### VERSION TO BUILD:
+```
+1.3.5
+```
+**Edit the version above ↑ and commit to trigger release automation**
+
+---
+
 ## Quick Start (30 seconds)
 
 ```bash
@@ -70,41 +88,25 @@ firebase deploy --only hosting
 ## What Gets Deployed?
 
 - Changelog page at `releases.quanttradertools.com/`
-- Auto-generated Next.js static site
-- All assets and styles included
+- Auto-generated Next.js site that pulls dynamically from `releases.json`
 
-## Updating Release Notes
+## Updating Release Notes (Automated)
 
-Edit `app/page.tsx`:
+The release notes are now fully automated and generated from your GitHub pipeline! 
 
-```typescript
-// Find the releases array
-const releases: ReleaseNote[] = [
-  {
-    version: '1.3.0',
-    date: 'January 20, 2025',
-    title: 'Your Feature Title',
-    description: 'Description of what changed',
-    features: ['Feature 1', 'Feature 2'],
-    fixes: ['Fix 1'],
-    improvements: ['Improvement 1'],
-  },
-  // ... existing releases
-];
-```
+To add features and fixes to a new release:
+1. Open the file `md_docs/LATEST_RELEASE.md` in this repository.
+2. Fill out the `## Features`, `## Improvements`, and `## Bug Fixes` sections as needed.
+3. Update the version number at the top of this `DEPLOYMENT.md` file.
+4. Commit and push your changes to GitHub.
 
-Then redeploy:
-
-```bash
-npm run build
-firebase deploy --only hosting
-```
+The automated pipeline will run, build the installer, read your custom release notes from `LATEST_RELEASE.md`, and automatically create the GitHub Release. The Release Notes site will then fetch these notes automatically via the `fetch:releases` script.
 
 ## Verify Deployment
 
-1. Open https://releases.quanttradertools.com in browser
-2. Should see the changelog page
-3. Check that "View Release Notes" button in QuantCopierUI app works
+1. Open https://releases.quanttradertools.com in your browser
+2. You should see the new version and your custom features fetched dynamically!
+3. Check that the "View Release Notes" button in QuantCopierUI app works.
 
 ## Next Steps
 
@@ -115,7 +117,7 @@ After deployment is live:
    - Click profile icon → View Release Notes
    - Should open the Firebase-hosted page
 
-2. **Keep it updated** - Add new releases before publishing app updates
+2. **Keep it updated** - Just update `LATEST_RELEASE.md` and bump the version here before every release.
 
 3. **Monitor** - Check Firebase Console → Hosting → Analytics
 
@@ -130,10 +132,10 @@ After deployment is live:
 
 ## File Locations
 
-- **Release content**: `QuantCopierReleaseNotes/app/page.tsx`
+- **Automated Release Notes Template**: `QuantCopierReleaseNotes/md_docs/LATEST_RELEASE.md`
+- **Release UI Component**: `QuantCopierReleaseNotes/app/ReleaseNotesClient.tsx`
 - **Styling**: `QuantCopierReleaseNotes/app/globals.css`
 - **Config**: `QuantCopierReleaseNotes/firebase.json`
-- **Link in app**: `QuantCopierUi/components/home/ProfileDropdown.tsx:284`
 
 ## Support
 

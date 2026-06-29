@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'QuantCopier - Release Notes',
@@ -17,8 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 font-sans">
-        {children}
+      <body className="bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-50 font-sans transition-colors">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

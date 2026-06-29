@@ -21,12 +21,12 @@ env:
   NODE_VERSION: "20"
   RUST_TOOLCHAIN: "stable"
   PYTHON_VERSION: "3.x"
-  FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierTelegramUI' }}
+  FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
   FRONTEND_REF: ${{ vars.FRONTEND_REF || 'main' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'QuantTraderTools/qcdemo' }}
+  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'diliprk/quantcopier' }}
   BACKEND_REF: ${{ vars.BACKEND_REF || 'main' }}
-  BACKEND_PATH: "backend"
+  BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
 
 jobs:
@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.FRONTEND_REPO_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Checkout backend sidecar repo
+      - name: Checkout backend app (quantcopier)
         uses: actions/checkout@v4
         with:
           repository: ${{ env.BACKEND_REPO }}
@@ -61,16 +61,151 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.BACKEND_REPO_TOKEN || secrets.GITHUB_TOKEN }}
 
-      # ------------------------------
+      # Extract version and apply to PyInstaller & Inno Setup
+      - name: Extract and apply version
+        id: version
+        shell: pwsh
+        run: |
+          # Priority 1: Read from markdown file (source of truth)
+          $markdownFile = "md_docs/DEPLOYMENT.md"
+          $version = $null
+          
+          if (Test-Path $markdownFile) {
+            $content = Get-Content $markdownFile -Raw
+            if ($content -match 'Current Version:\s*(\d+\.\d+\.\d+)') {
+              $version = $matches[1]
+              Write-Host "✓ Found version in markdown (Current Version): $version"
+            } elseif ($content -match 'VERSION TO BUILD:.*?(\d+\.\d+\.\d+)') {
+              $version = $matches[1]
+              Write-Host "✓ Found version in markdown (VERSION TO BUILD): $version"
+            } elseif ($content -match '(\d+\.\d+\.\d+)') {
+              $version = $matches[1]
+              Write-Host "✓ Found generic version pattern in markdown: $version"
+            }
+          }
+          
+          # Priority 2: Extract from GitHub release tag
+          if (-not $version) {
+            if ("${{ github.event_name }}" -eq "release") {
+              $tag = "${{ github.event.release.tag_name }}"
+              if ($tag -match "^v?(\d+\.\d+\.\d+.*)$") {
+                $version = $matches[1]
+                Write-Host "✓ Found version in release tag: $version"
+              }
+            }
+          }
+          
+          # Priority 3: Fallback
+          if (-not $version) {
+            $version = "1.0.0"
+            Write-Host "⚠ Using default version: $version"
+          }
+          
+          Write-Host "📦 Final version: $version"
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          
+          # Update PyInstaller spec file
+          $specFile = "${{ env.FRONTEND_PATH }}/Backend/QuantCopierAPI.spec"
+          if (Test-Path $specFile) {
+            $content = Get-Content $specFile -Raw
+            if ($content -match "version\s*=\s*'api_version_info") {
+              Write-Host "✓ PyInstaller spec uses api_version_info.txt (version patched there)"
+            } elseif ($content -match 'version\s*=') {
+              $content = $content -replace "version\s*=\s*'[^']*'", "version='api_version_info.txt'"
+              Set-Content $specFile -Value $content -Encoding UTF8 -NoNewline
+              Write-Host "✓ Updated PyInstaller spec to use api_version_info.txt"
+            } else {
+              $content = $content -replace "(name='QuantCopierAPI',)", "name='QuantCopierAPI',`n    version='api_version_info.txt',"
+              Set-Content $specFile -Value $content -Encoding UTF8 -NoNewline
+              Write-Host "✓ Added version='api_version_info.txt' to PyInstaller spec"
+            }
+          }
+
+          # Update api_version_info.txt (PyInstaller Windows PE metadata)
+          $versionInfoFile = "${{ env.FRONTEND_PATH }}/Backend/api_version_info.txt"
+          if (Test-Path $versionInfoFile) {
+            $parts = $version -split '\.'
+            $major = if ($parts.Length -gt 0) { $parts[0] } else { '1' }
+            $minor = if ($parts.Length -gt 1) { $parts[1] } else { '0' }
+            $patch = if ($parts.Length -gt 2) { $parts[2] } else { '0' }
+            $tuple = "($major, $minor, $patch, 0)"
+            $vi = Get-Content $versionInfoFile -Raw
+            $vi = $vi -replace 'filevers\s*=\s*\([^)]+\)', "filevers=$tuple"
+            $vi = $vi -replace 'prodvers\s*=\s*\([^)]+\)', "prodvers=$tuple"
+            $vi = $vi -replace "StringStruct\([uU]?'FileVersion'[^)]*\)", "StringStruct(u'FileVersion',      u'$version.0')"
+            $vi = $vi -replace "StringStruct\([uU]?'ProductVersion'[^)]*\)", "StringStruct(u'ProductVersion',   u'$version')"
+            Set-Content $versionInfoFile -Value $vi -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated api_version_info.txt: version=$version"
+          }
+
+          # Update QuantCopier version_info.txt (PyInstaller Windows PE metadata)
+          $QuantCopierVersionFile = "${{ env.BACKEND_PATH }}/version_info.txt"
+          if (Test-Path $QuantCopierVersionFile) {
+            $parts = $version -split '\.'
+            $major = if ($parts.Length -gt 0) { $parts[0] } else { '1' }
+            $minor = if ($parts.Length -gt 1) { $parts[1] } else { '0' }
+            $patch = if ($parts.Length -gt 2) { $parts[2] } else { '0' }
+            $tuple = "($major, $minor, $patch, 0)"
+            $vi = Get-Content $QuantCopierVersionFile -Raw
+            $vi = $vi -replace 'filevers\s*=\s*\([^)]+\)', "filevers=$tuple"
+            $vi = $vi -replace 'prodvers\s*=\s*\([^)]+\)', "prodvers=$tuple"
+            $vi = $vi -replace "StringStruct\([uU]?'FileVersion'[^)]*\)", "StringStruct(u'FileVersion',      u'$version.0')"
+            $vi = $vi -replace "StringStruct\([uU]?'ProductVersion'[^)]*\)", "StringStruct(u'ProductVersion',   u'$version')"
+            Set-Content $QuantCopierVersionFile -Value $vi -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated QuantCopier version_info.txt: version=$version"
+          }
+
+          # Create QuantCopier VERSION file for standalone auto-updater
+          $QuantCopierVersionText = "${{ env.BACKEND_PATH }}/VERSION"
+          Set-Content $QuantCopierVersionText -Value $version -Encoding UTF8 -NoNewline
+          Write-Host "✓ Created QuantCopier VERSION file: version=$version"
+          
+          # Update Inno Setup script
+          $issFile = "${{ env.FRONTEND_PATH }}/QCTelegramMT5_SetupExe_Spec.iss"
+          if (Test-Path $issFile) {
+            $content = Get-Content $issFile -Raw
+            $content = $content -replace '#define MyAppVersion ".+?"', ('#define MyAppVersion "' + $version + '"')
+            if ($content -match '#define MyFileVersion') {
+              $content = $content -replace '#define MyFileVersion ".+?"', ('#define MyFileVersion "' + $version + '"')
+            } else {
+              $content = $content -replace "(#define MyAppVersion ""$version"")", "`$1`n#define MyFileVersion ""$version"""
+            }
+            Set-Content $issFile -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated Inno Setup: version=$version"
+          }
+
+          # Update tauri.conf.json (embeds into QuantCopierTelegramUI.exe PE header)
+          $tauriConf = "${{ env.FRONTEND_PATH }}/src-tauri/tauri.conf.json"
+          if (Test-Path $tauriConf) {
+            $content = Get-Content $tauriConf -Raw
+            $content = $content -replace '"version":\s*"[^"]+"', ('"version": "' + $version + '"')
+            Set-Content $tauriConf -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated tauri.conf.json: version=$version"
+          }
+
+          # Update Cargo.toml (must match tauri.conf.json)
+          $cargoToml = "${{ env.FRONTEND_PATH }}/src-tauri/Cargo.toml"
+          if (Test-Path $cargoToml) {
+            $content = Get-Content $cargoToml -Raw
+            $content = $content -replace '(?m)^(version\s*=\s*)"[^"]+"', "`${1}""$version"""
+            Set-Content $cargoToml -Value $content -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated Cargo.toml: version=$version"
+          }
+
+          # Update package.json
+          $pkgJson = "${{ env.FRONTEND_PATH }}/package.json"
+          if (Test-Path $pkgJson) {
+            $pkg = Get-Content $pkgJson -Raw | ConvertFrom-Json
+            $pkg.version = $version
+            $pkg | ConvertTo-Json -Depth 10 | Set-Content $pkgJson -Encoding UTF8 -NoNewline
+            Write-Host "✓ Updated package.json: version=$version"
+          }
+
       # Setup toolchains
-      # ------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            ${{ env.FRONTEND_PATH }}/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -97,12 +232,10 @@ jobs:
           if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found"; exit 1 }
           echo "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # ------------------------------
-      # Build backend sidecar with PyInstaller
-      # ------------------------------
-      - name: Create venv and install backend deps
+
+      - name: Create venv and install API backend deps
         shell: pwsh
-        working-directory: ${{ env.BACKEND_PATH }}
+        working-directory: ${{ env.FRONTEND_PATH }}\Backend
         run: |
           python -m venv .venv
           .\.venv\Scripts\Activate.ps1
@@ -110,38 +243,168 @@ jobs:
           if (Test-Path requirements.txt) { pip install -r requirements.txt }
           if (Test-Path requirements-dev.txt) { pip install -r requirements-dev.txt }
 
-      - name: Build sidecar executable (PyInstaller)
+      - name: Build API sidecar executable (PyInstaller)
+        shell: pwsh
+        working-directory: ${{ env.FRONTEND_PATH }}\Backend
+        run: |
+          .\.venv\Scripts\Activate.ps1
+
+          # Build must package real runtime configuration, not placeholders.
+          # Support secrets named with APP_ prefix or without (fallback).
+          $fb_db = "${{ secrets.APP_FIREBASE_DATABASE_URL }}"
+          if ([string]::IsNullOrWhiteSpace($fb_db)) { $fb_db = "${{ secrets.FIREBASE_DATABASE_URL }}" }
+          $fb_token = "${{ secrets.APP_FIREBASE_AUTH_TOKEN }}"
+          if ([string]::IsNullOrWhiteSpace($fb_token)) { $fb_token = "${{ secrets.FIREBASE_AUTH_TOKEN }}" }
+          $sa_b64 = "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
+
+          if ([string]::IsNullOrWhiteSpace($fb_db)) {
+            Write-Error "Missing required secret: APP_FIREBASE_DATABASE_URL or FIREBASE_DATABASE_URL"
+            exit 1
+          }
+          if ([string]::IsNullOrWhiteSpace($fb_token)) {
+            Write-Error "Missing required secret: APP_FIREBASE_AUTH_TOKEN or FIREBASE_AUTH_TOKEN"
+            exit 1
+          }
+          if ([string]::IsNullOrWhiteSpace($sa_b64)) {
+            Write-Error "Missing required secret: FIREBASE_SERVICE_ACCOUNT_KEY"
+            exit 1
+          }
+
+          # Decode the service account key from Base64 to inline JSON string.
+          # This is embedded in .env as FIREBASE_SERVICE_ACCOUNT_KEY so the
+          # GCPBucketManager can authenticate at runtime without a separate file.
+          $sa_json = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($sa_b64))
+
+          $envContent = @(
+            "FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-credentials.json",
+            "FIREBASE_DATABASE_URL=$fb_db",
+            "FIREBASE_AUTH_TOKEN=$fb_token",
+            "FIREBASE_SERVICE_ACCOUNT_KEY=$sa_json"
+          ) -join "`n"
+          Set-Content -Path ".env" -Value $envContent.Trim() -Encoding UTF8 -NoNewline
+          Write-Host "✓ .env written (FIREBASE_SERVICE_ACCOUNT_KEY embedded as inline JSON)"
+
+          $credPath = "firebase-credentials.json"
+          try {
+            [IO.File]::WriteAllBytes($credPath, [Convert]::FromBase64String($sa_b64))
+          } catch {
+            Write-Error "Provided Firebase credentials secret is not valid base64 JSON"
+            exit 1
+          }
+
+          # Ensure non-secret required files exist for the .spec datas list.
+          if (-not (Test-Path "config.ini")) {
+            Set-Content -Path "config.ini" -Value "[DEFAULT]" -Encoding UTF8 -NoNewline
+          }
+          if (-not (Test-Path "symbol_mapper.json")) {
+            Set-Content -Path "symbol_mapper.json" -Value "{}" -Encoding UTF8 -NoNewline
+          }
+
+          if (Test-Path QuantCopierAPI.spec) {
+            pyinstaller QuantCopierAPI.spec
+          } else {
+            pyinstaller --onefile QuantCopierAPI.py
+          }
+
+      - name: Locate API sidecar binary
+        id: api_sidecar
+        shell: pwsh
+        working-directory: ${{ env.FRONTEND_PATH }}\Backend
+        run: |
+          $bin = Get-ChildItem -Path dist -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $bin) { Write-Error "API sidecar binary not found"; exit 1 }
+          echo "API_SIDECAR_PATH=$($bin.FullName)" >> $env:GITHUB_OUTPUT
+          echo "API_SIDECAR_NAME=$($bin.Name)" >> $env:GITHUB_OUTPUT
+          Write-Host "Found API sidecar: $($bin.FullName)"
+
+      - name: Normalize API sidecar filename
+        shell: pwsh
+        working-directory: ${{ env.FRONTEND_PATH }}\Backend
+        run: |
+          $src = "${{ steps.api_sidecar.outputs.API_SIDECAR_PATH }}"
+          $dest = Join-Path $env:RUNNER_TEMP "QuantCopierAPI.exe"
+          Copy-Item -Path $src -Destination $dest -Force
+          echo "NORMALIZED_API_SIDECAR_PATH=$dest" >> $env:GITHUB_ENV
+          echo "NORMALIZED_API_SIDECAR_NAME=QuantCopierAPI.exe" >> $env:GITHUB_ENV
+          Write-Host "Normalized API sidecar: $dest"
+
+      - name: Upload API sidecar as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-sidecar-v${{ steps.version.outputs.VERSION }}
+          path: ${{ env.NORMALIZED_API_SIDECAR_PATH }}
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Copy API sidecar into Tauri binaries folder
+        shell: pwsh
+        run: |
+          $targetDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\binaries"
+          if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }
+          $targetName = "QuantCopierAPI-x86_64-pc-windows-msvc.exe"
+          Copy-Item "${{ steps.api_sidecar.outputs.API_SIDECAR_PATH }}" (Join-Path $targetDir $targetName) -Force
+          Write-Host "Copied API sidecar to $targetDir\$targetName"
+
+      # ------------------------------
+      # Build Legacy QuantCopier backend
+      # ------------------------------
+      - name: Create venv and install QuantCopier deps
+        shell: pwsh
+        working-directory: ${{ env.BACKEND_PATH }}
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\Activate.ps1
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+
+      - name: Build QuantCopier executable (PyInstaller)
         shell: pwsh
         working-directory: ${{ env.BACKEND_PATH }}
         run: |
           .\.venv\Scripts\Activate.ps1
           if (Test-Path QuantCopierTelegram.spec) {
             pyinstaller QuantCopierTelegram.spec
-          } elseif (Test-Path QuantCopierAPI.spec) {
-            pyinstaller QuantCopierAPI.spec
           } else {
             pyinstaller --onefile QuantCopierTelegram.py
           }
 
-      - name: Locate sidecar binary
-        id: sidecar
+      - name: Locate QuantCopier binary
+        id: QuantCopier_sidecar
         shell: pwsh
         working-directory: ${{ env.BACKEND_PATH }}
         run: |
           $bin = Get-ChildItem -Path dist -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $bin) { Write-Error "Sidecar binary not found"; exit 1 }
-          echo "SIDECAR_PATH=$($bin.FullName)" >> $env:GITHUB_OUTPUT
-          echo "SIDECAR_NAME=$($bin.Name)" >> $env:GITHUB_OUTPUT
-          Write-Host "Found sidecar: $($bin.FullName)"
+          if (-not $bin) { Write-Error "QuantCopier binary not found"; exit 1 }
+          echo "QuantCopier_SIDECAR_PATH=$($bin.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Host "Found QuantCopier sidecar: $($bin.FullName)"
 
-      - name: Copy sidecar into Tauri binaries folder
+      - name: Copy QuantCopier sidecar into Tauri binaries folder
         shell: pwsh
         run: |
+          $sourcePath = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
+          Write-Host "Source path is: $sourcePath"
+          
+          if (-not (Test-Path $sourcePath)) {
+            Write-Error "CRITICAL: The source executable $sourcePath does not exist!"
+            exit 1
+          }
+
           $targetDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\binaries"
           if (-not (Test-Path $targetDir)) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }
-          $targetName = "QuantCopierAPI-x86_64-pc-windows-msvc.exe"
-          Copy-Item "${{ steps.sidecar.outputs.SIDECAR_PATH }}" (Join-Path $targetDir $targetName) -Force
-          Write-Host "Copied sidecar to $targetDir\$targetName"
+          $targetName = "QuantCopierTelegram-x86_64-pc-windows-msvc.exe"
+          $destPath = Join-Path $targetDir $targetName
+          
+          Write-Host "Copying to: $destPath"
+          Copy-Item -Path $sourcePath -Destination $destPath -Force -ErrorAction Stop
+          
+          if (-not (Test-Path $destPath)) {
+            Write-Error "CRITICAL: Failed to verify that $destPath was created!"
+            exit 1
+          }
+          
+          Write-Host "Successfully verified sidecar at $destPath"
+          Write-Host "Contents of binaries directory:"
+          Get-ChildItem -Path $targetDir | Select-Object Name, Length
 
       # ------------------------------
       # Build Tauri app
@@ -155,6 +418,27 @@ jobs:
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
         run: npm run tauri build
+
+      - name: Locate and copy raw Tauri UI executable
+        shell: pwsh
+        run: |
+          $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierTelegramUI.exe"
+          if (-not (Test-Path $src)) {
+            $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5.exe"
+          }
+          if (-not (Test-Path $src)) {
+            $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe -Recurse | 
+                   Where-Object { $_.Name -like "*QuantCopier*" -and $_.Name -notlike "*API*" } | 
+                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
+          if (-not $src -or -not (Test-Path $src)) { Write-Error "Tauri raw executable not found"; exit 1 }
+          $dest = Join-Path $env:RUNNER_TEMP "QuantCopierTelegramUI.exe"
+          Copy-Item -Path $src -Destination $dest -Force
+          echo "RAW_UI_PATH=$dest" >> $env:GITHUB_ENV
+          echo "RAW_UI_NAME=QuantCopierTelegramUI.exe" >> $env:GITHUB_ENV
+          Write-Host "Raw UI executable copied to: $dest"
+
+
 
       - name: Find Tauri installer
         id: tauri_installer
@@ -188,8 +472,9 @@ jobs:
           if (-not $iss) { Write-Error "Inno Setup .iss file not found"; exit 1 }
           $tempIss = Join-Path $env:RUNNER_TEMP "build.iss"
           $content = Get-Content $iss -Raw
-          $appDir = Resolve-Path "src-tauri\target\release"
-          $content = $content -replace "\{APP_DIR\}", $appDir
+          $appDir = Resolve-Path "."
+          $content = $content -replace '#define ParentPath "\."', "#define ParentPath `"$appDir`""
+          $content = $content -replace 'OutputDir=build', "OutputDir=$env:RUNNER_TEMP"
           Set-Content -Path $tempIss -Value $content -Encoding UTF8
           echo "INNO_ISS=$tempIss" >> $env:GITHUB_OUTPUT
           echo "INNO_ISS_NAME=$($iss.Name)" >> $env:GITHUB_OUTPUT
@@ -206,18 +491,69 @@ jobs:
           echo "FINAL_INSTALLER_NAME=$($output.Name)" >> $env:GITHUB_OUTPUT
           Write-Host "Inno installer: $($output.FullName)"
 
+      - name: Normalize installer filename
+        shell: pwsh
+        run: |
+          $src = "${{ steps.inno_run.outputs.FINAL_INSTALLER }}"
+          $dest = Join-Path $env:RUNNER_TEMP "QuantCopier.exe"
+          Copy-Item -Path $src -Destination $dest -Force
+          echo "NORMALIZED_INSTALLER_PATH=$dest" >> $env:GITHUB_ENV
+          echo "NORMALIZED_INSTALLER_NAME=QuantCopier.exe" >> $env:GITHUB_ENV
+          Write-Host "Normalized installer: $dest"
+
+      - name: Generate releases.json for auto-update
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $bucket = "${{ env.FIREBASE_BUCKET }}"
+          $releaseTag = "v$version"
+          $releasesJsonPath = Join-Path $env:RUNNER_TEMP "releases.json"
+
+          # Use canonical artifact filenames
+          $installerFile = "QuantCopierTelegramUI.exe"
+          $apiFile = "QuantCopierAPI.exe"
+          $baseUrl = "https://storage.googleapis.com/$bucket/Telegram/$releaseTag/"
+
+          $releaseData = @{
+            latest = $releaseTag
+            version = $version
+            url = $baseUrl
+            updatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            files = @{
+              mainInstaller = $installerFile
+              apiSidecar = $apiFile
+              QuantCopierSidecar = "QuantCopierTelegram.exe"
+            }
+            downloads = @{
+              mainInstaller = "$baseUrl$installerFile"
+              apiSidecar = "$baseUrl$apiFile"
+              QuantCopierSidecar = "$baseUrl`QuantCopierTelegram.exe"
+            }
+          }
+
+          $releaseData | ConvertTo-Json -Depth 6 | Set-Content -Path $releasesJsonPath -Encoding UTF8 -NoNewline
+          echo "RELEASES_JSON_PATH=$releasesJsonPath" >> $env:GITHUB_ENV
+          Write-Host "Generated releases.json at $releasesJsonPath"
+
       # ------------------------------
       # Upload to Firebase Storage
       # ------------------------------
       - name: Decode Firebase Service Account
         shell: pwsh
         run: |
-          if (-not "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}") { Write-Error "FIREBASE_SERVICE_ACCOUNT_KEY not set"; exit 1 }
           $b64 = "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
+          if ([string]::IsNullOrWhiteSpace($b64)) { Write-Error "FIREBASE_SERVICE_ACCOUNT_KEY secret not configured"; exit 1 }
+          $bucket = "${{ env.FIREBASE_BUCKET }}"
+          if ([string]::IsNullOrWhiteSpace($bucket)) { Write-Error "FIREBASE_STORAGE_BUCKET secret not configured"; exit 1 }
           $jsonPath = "$env:RUNNER_TEMP\firebase-key.json"
-          [IO.File]::WriteAllBytes($jsonPath, [Convert]::FromBase64String($b64))
+          try {
+            [IO.File]::WriteAllBytes($jsonPath, [Convert]::FromBase64String($b64))
+          } catch {
+            Write-Error "Failed to decode FIREBASE_SERVICE_ACCOUNT_KEY. Ensure it is valid Base64."
+            exit 1
+          }
           echo "GOOGLE_APPLICATION_CREDENTIALS=$jsonPath" >> $env:GITHUB_ENV
-          Write-Host "Service account decoded"
+          Write-Host "✓ Service account credentials decoded"
 
       - name: Install upload dependencies
         shell: pwsh
@@ -227,15 +563,120 @@ jobs:
           if (Test-Path scripts\requirements.txt) { pip install -r scripts\requirements.txt } else { pip install google-cloud-storage }
 
       - name: Upload installer to Firebase Storage
+        id: firebase_upload
         shell: pwsh
         working-directory: .
         run: |
-          $tag = if ("${{ github.event_name }}" -eq "release") { "${{ github.event.release.tag_name }}" } elseif ("${{ github.event.inputs.release_tag }}" -ne "") { "${{ github.event.inputs.release_tag }}" } else { "manual-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
-          $dest = "installers/$tag/${{ steps.inno_run.outputs.FINAL_INSTALLER_NAME }}"
-          python scripts/upload_firebase.py --bucket "${{ env.FIREBASE_BUCKET }}" --file "${{ steps.inno_run.outputs.FINAL_INSTALLER }}" --dest "$dest" --credentials "$env:GOOGLE_APPLICATION_CREDENTIALS"
-          $url = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/installers%2F$tag%2F${{ steps.inno_run.outputs.FINAL_INSTALLER_NAME }}?alt=media"
+          function Invoke-Upload {
+            param(
+              [string]$Source,
+              [string]$Destination
+            )
+            python scripts/upload_firebase.py --bucket "${{ env.FIREBASE_BUCKET }}" --file "$Source" --dest "$Destination" --credentials "$env:GOOGLE_APPLICATION_CREDENTIALS"
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Upload failed for destination: $Destination"
+              exit 1
+            }
+          }
+
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $releaseTag = "v$version"
+          
+          # Public installer
+          $publicInstallerName = "QuantCopierMT5Telegram.exe"
+          $publicInstallerPath = "$env:NORMALIZED_INSTALLER_PATH"
+
+          # Auto-update artifacts
+          $uiName = "QuantCopierTelegramUI.exe"
+          $uiPath = "$env:RAW_UI_PATH"
+
+          $apiName = "QuantCopierAPI.exe"
+          $apiPath = "$env:NORMALIZED_API_SIDECAR_PATH"
+
+          # 1. Upload public installer (QuantCopierMT5Telegram.exe)
+          $dest = "Telegram/$releaseTag/$publicInstallerName"
+          Write-Host "Uploading public installer to GCS: $dest"
+          Invoke-Upload -Source "$publicInstallerPath" -Destination $dest
+
+          # 2. Upload raw UI executable (QuantCopierTelegramUI.exe)
+          $uiDest = "Telegram/$releaseTag/$uiName"
+          Write-Host "Uploading raw UI executable to GCS: $uiDest"
+          Invoke-Upload -Source "$uiPath" -Destination $uiDest
+
+          # 3. Upload API sidecar executable (QuantCopierAPI.exe)
+          $apiSidecarDest = "Telegram/$releaseTag/$apiName"
+          Write-Host "Uploading API sidecar to GCS: $apiSidecarDest"
+          Invoke-Upload -Source "$apiPath" -Destination $apiSidecarDest
+
+          # 4. Upload QuantCopier executable (QuantCopierTelegram.exe)
+          $QuantCopierDest = "Telegram/$releaseTag/QuantCopierTelegram.exe"
+          Write-Host "Uploading QuantCopier to GCS: $QuantCopierDest"
+          Invoke-Upload -Source "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}" -Destination $QuantCopierDest
+
+          $url = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Telegram%2F$releaseTag%2F$publicInstallerName?alt=media"
+          $uiUrl = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Telegram%2F$releaseTag%2F$uiName?alt=media"
+          $apiSidecarUrl = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Telegram%2F$releaseTag%2F$apiName?alt=media"
+          $QuantCopierUrl = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Telegram%2F$releaseTag%2FQuantCopierTelegram.exe?alt=media"
+          $releasesJsonUrl = "https://storage.googleapis.com/${{ env.FIREBASE_BUCKET }}/Telegram/releases.json"
+
           echo "FIREBASE_URL=$url" >> $env:GITHUB_ENV
-          echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          echo "UI_FIREBASE_URL=$uiUrl" >> $env:GITHUB_ENV
+          echo "API_SIDECAR_FIREBASE_URL=$apiSidecarUrl" >> $env:GITHUB_ENV
+          echo "QuantCopier_FIREBASE_URL=$QuantCopierUrl" >> $env:GITHUB_ENV
+          echo "RELEASES_JSON_URL=$releasesJsonUrl" >> $env:GITHUB_ENV
+          echo "RELEASE_TAG=$releaseTag" >> $env:GITHUB_ENV
+          echo "upload_success=true" >> $env:GITHUB_OUTPUT
+
+      - name: Upload releases.json to Firebase root
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "$env:RELEASES_JSON_PATH")) {
+            Write-Error "releases.json was not generated"
+            exit 1
+          }
+          python scripts/upload_firebase.py --bucket "${{ env.FIREBASE_BUCKET }}" --file "$env:RELEASES_JSON_PATH" --dest "Telegram/releases.json" --cache-control "no-cache, max-age=0" --credentials "$env:GOOGLE_APPLICATION_CREDENTIALS"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to upload releases.json"
+            exit 1
+          }
+
+      - name: Trigger archive Cloud Function
+        shell: pwsh
+        run: |
+          Write-Host "Triggering archive function to move old versions to Archive storage..."
+          
+          $pyScript = @"
+          import os, json, requests
+          import google.auth.transport.requests
+          import google.oauth2.id_token
+
+          key_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+          if not key_path:
+              print("GOOGLE_APPLICATION_CREDENTIALS not found!")
+              exit(1)
+              
+          with open(key_path, 'r') as f:
+              project_id = json.load(f)['project_id']
+              
+          url = f"https://us-central1-{project_id}.cloudfunctions.net/archive-old-releases"
+          print(f"Triggering URL: {url}")
+          
+          try:
+              auth_req = google.auth.transport.requests.Request()
+              token = google.oauth2.id_token.fetch_id_token(auth_req, url)
+              res = requests.post(url, headers={'Authorization': f'Bearer {token}'}, json={})
+              print(f"Status Code: {res.status_code}")
+              print(res.text)
+          except Exception as e:
+              print(f"Error calling function: {e}")
+              exit(1)
+          "@
+          
+          $pyScript | Out-File -FilePath trigger_archive.py -Encoding UTF8
+          python trigger_archive.py
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Failed to trigger archive function, but continuing pipeline."
+          }
 
       # ------------------------------
       # Upload artifact
@@ -244,20 +685,42 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer-${{ env.RELEASE_TAG || github.event.release.tag_name }}
-          path: ${{ steps.inno_run.outputs.FINAL_INSTALLER }}
+          path: ${{ env.NORMALIZED_INSTALLER_PATH }}
           if-no-files-found: error
           retention-days: 90
 
       # ------------------------------
       # Summary
       # ------------------------------
+      # Cleanup sensitive files
+      - name: Cleanup Firebase Credentials
+        if: always()
+        shell: pwsh
+        run: |
+          $keyPath = "$env:RUNNER_TEMP\firebase-key.json"
+          if (Test-Path $keyPath) {
+            Remove-Item -Path $keyPath -Force
+            Write-Host "✓ Cleaned up sensitive Firebase credentials"
+          }
+
       - name: Summary
+        if: steps.firebase_upload.outputs.upload_success == 'true'
         shell: pwsh
         run: |
           @"
           ## ✅ Full Installer Pipeline Complete
-          - Release tag: `${{ env.RELEASE_TAG || github.event.release.tag_name }}`
-          - Installer: `${{ steps.inno_run.outputs.FINAL_INSTALLER_NAME }}`
-          - Firebase path: gs://${{ env.FIREBASE_BUCKET }}/installers/${{ env.RELEASE_TAG || github.event.release.tag_name }}/${{ steps.inno_run.outputs.FINAL_INSTALLER_NAME }}
-          - Download URL: ${{ env.FIREBASE_URL }}
+          - Release tag: `${{ env.RELEASE_TAG }}`
+          - Installer: `QuantCopierMT5Telegram.exe`
+          - Raw UI App: `QuantCopierTelegramUI.exe`
+          - API Sidecar: `QuantCopierAPI.exe`
+          - QuantCopier Sidecar: `QuantCopierTelegram.exe`
+          - Firebase Installer path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierMT5Telegram.exe
+          - Firebase Raw UI path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierTelegramUI.exe
+          - API Sidecar Firebase path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierAPI.exe
+          - QuantCopier Sidecar Firebase path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierTelegram.exe
+          - releases.json: ${{ env.RELEASES_JSON_URL }}
+          - Download Installer URL: ${{ env.FIREBASE_URL }}
+          - Raw UI Download URL: ${{ env.UI_FIREBASE_URL }}
+          - API Sidecar Download URL: ${{ env.API_SIDECAR_FIREBASE_URL }}
+          - QuantCopier Download URL: ${{ env.QuantCopier_FIREBASE_URL }}
           "@ >> $env:GITHUB_STEP_SUMMARY

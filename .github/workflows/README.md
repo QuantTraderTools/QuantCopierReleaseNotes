@@ -15,7 +15,7 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 **What it does:**
 1. Checks out this orchestrator repo (for scripts and configuration)
 2. Checks out the **frontend repo** (QuantCopierTelegramUI)
-3. Checks out the **backend repo** (qcdemo - Python sidecar)
+3. Checks out the **backend repo** (QuantCopier - Python sidecar)
 4. Builds the backend Python sidecar using PyInstaller
 5. Copies the sidecar binary into the frontend's Tauri `binaries/` folder
 6. Builds the Tauri Windows installer (.exe)
@@ -35,7 +35,7 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 **Repository Variables (optional):**
 - `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierTelegramUI`
 - `FRONTEND_REF` - Default: `main`
-- `BACKEND_REPO` - Default: `QuantTraderTools/qcdemo`
+- `BACKEND_REPO` - Default: `QuantTraderTools/QuantCopier`
 - `BACKEND_REF` - Default: `main`
 
 **Output:**
@@ -122,7 +122,7 @@ To override default repo/branch:
 |------------|-------|---------|
 | `FRONTEND_REPO` | `QuantTraderTools/QuantCopierTelegramUI` | `yourorg/custom-frontend` |
 | `FRONTEND_REF` | `main` | `release-v2.0` |
-| `BACKEND_REPO` | `QuantTraderTools/qcdemo` | `yourorg/custom-backend` |
+| `BACKEND_REPO` | `QuantTraderTools/QuantCopier` | `yourorg/custom-backend` |
 | `BACKEND_REF` | `main` | `dev` |
 
 ### 6. Test the Workflow
@@ -162,7 +162,7 @@ External Repos (checked out during workflow):
 │   │   └── binaries/              # Sidecar binary placed here
 │   ├── app/                       # Next.js frontend
 │   └── QCTelegramMT5_SetupExe_Spec.iss # Inno Setup script
-└── qcdemo (Backend)
+└── QuantCopier (Backend)
     ├── QuantCopierTelegram.py     # Main Python script
     ├── QuantCopierTelegram.spec   # PyInstaller spec
     └── requirements.txt           # Python dependencies
