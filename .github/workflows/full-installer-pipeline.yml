@@ -24,7 +24,7 @@ env:
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
   FRONTEND_REF: ${{ vars.FRONTEND_REF || 'telegram' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ 'diliprk/quantcopier' }}
+  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'diliprk/quantcopier' }}
   BACKEND_REF: ${{ vars.BACKEND_REF || 'telegram' }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
@@ -440,6 +440,17 @@ jobs:
 
 
 
+
+      - name: Stage QuantCopierTelegram.exe for Inno Setup
+        shell: pwsh
+        run: |
+          $src = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
+          $releaseDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\target\release"
+          if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null }
+          $dest = Join-Path $releaseDir "QuantCopierTelegram.exe"
+          Copy-Item -Path $src -Destination $dest -Force -ErrorAction Stop
+          Write-Host "✓ Staged QuantCopierTelegram.exe for Inno Setup at: $dest"
+
       - name: Find Tauri installer
         id: tauri_installer
         shell: pwsh
@@ -522,12 +533,12 @@ jobs:
             files = @{
               mainInstaller = $installerFile
               apiSidecar = $apiFile
-              QuantCopierSidecar = "QuantCopierTelegram.exe"
+              quantcopierSidecar = "QuantCopierTelegram.exe"
             }
             downloads = @{
               mainInstaller = "$baseUrl$installerFile"
               apiSidecar = "$baseUrl$apiFile"
-              QuantCopierSidecar = "$baseUrl`QuantCopierTelegram.exe"
+              quantcopierSidecar = "$baseUrl`QuantCopierTelegram.exe"
             }
           }
 
