@@ -101,7 +101,7 @@ Edit `app/page.tsx` and add new release entries to the `releases` array:
 
 ```typescript
 {
-  version: '1.3.0',
+  version: '0.1.0',
   date: 'January 15, 2025',
   title: 'Feature Title',
   description: 'What this release is about',

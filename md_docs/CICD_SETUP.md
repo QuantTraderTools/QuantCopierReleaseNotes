@@ -115,7 +115,7 @@ Check these files exist:
 ```
 QuantCopierUi/
   ├── .github/workflows/
-  │   └── build-installer.yml          ✓ Main workflow
+  │   └── full installer.yml          ✓ Main workflow
   ├── scripts/
   │   ├── upload_firebase.py           ✓ Upload script
   │   ├── release_to_json.js           ✓ JSON generator

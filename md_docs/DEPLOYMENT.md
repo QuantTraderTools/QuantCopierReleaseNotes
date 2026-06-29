@@ -1,18 +1,18 @@
 # QuantCopier Release Notes Deployment Guide
 
-> **Current Version: 1.3.5**
+> **Current Version: 0.1.0**
 
 ## How to Release a New Version
 
 1. **Update version number below** ↓
-2. Commit and push to `main`
+2. Commit and push to specific branch
 3. Installer workflow automatically builds with new version
 4. After build completes, GitHub Release is created automatically
 5. Release notes site fetches and displays new version
 
 ### VERSION TO BUILD:
 ```
-1.3.5
+0.1.0
 ```
 **Edit the version above ↑ and commit to trigger release automation**
 

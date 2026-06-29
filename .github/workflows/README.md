@@ -34,7 +34,7 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 
 **Repository Variables (optional):**
 - `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierUI`
-- `FRONTEND_REF` - Default: `main`
+- `FRONTEND_REF` - Default: `telegram`
 - `BACKEND_REPO` - Default: `diliprk/quantcopier`
 - `BACKEND_REF` - Default: `telegram`
 

@@ -246,7 +246,7 @@ If you edit a release after publishing and need to update the site immediately:
 1. Go to **GitHub → Actions**
 2. Click **"Deploy Release Notes to Firebase"**
 3. Click **"Run workflow"** (blue button)
-4. Select branch: `main`
+4. Select branch: `telegram`
 5. Click **"Run workflow"**
 6. Workflow executes, deployment happens
 
