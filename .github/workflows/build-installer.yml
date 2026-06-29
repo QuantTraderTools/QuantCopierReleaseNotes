@@ -34,7 +34,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   RUST_TOOLCHAIN: "stable"
   FRONTEND_REPO: ${{ github.event.inputs.frontend_repo || vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopieEUI' }}
   FRONTEND_REF: ${{ github.event.inputs.frontend_ref || vars.FRONTEND_REF || 'main' }}
