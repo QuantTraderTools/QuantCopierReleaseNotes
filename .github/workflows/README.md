@@ -14,8 +14,8 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 
 **What it does:**
 1. Checks out this orchestrator repo (for scripts and configuration)
-2. Checks out the **frontend repo** (QuantCopierTelegramUI)
-3. Checks out the **backend repo** (QuantCopier - Python sidecar)
+2. Checks out the **frontend repo** (QuantCopierUI)
+3. Checks out the **backend repo** (quantcopier - Python sidecar)
 4. Builds the backend Python sidecar using PyInstaller
 5. Copies the sidecar binary into the frontend's Tauri `binaries/` folder
 6. Builds the Tauri Windows installer (.exe)
@@ -33,9 +33,9 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 - `TAURI_KEY_PASSWORD` (optional) - For code signing
 
 **Repository Variables (optional):**
-- `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierTelegramUI`
+- `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierUI`
 - `FRONTEND_REF` - Default: `main`
-- `BACKEND_REPO` - Default: `QuantTraderTools/QuantCopier`
+- `BACKEND_REPO` - Default: `diliprk/quantcopier`
 - `BACKEND_REF` - Default: `main`
 
 **Output:**
@@ -120,9 +120,9 @@ To override default repo/branch:
 
 | Variable Name | Default | Override Example |
 |------------|-------|---------|
-| `FRONTEND_REPO` | `QuantTraderTools/QuantCopierTelegramUI` | `yourorg/custom-frontend` |
+| `FRONTEND_REPO` | `QuantTraderTools/QuantCopierUI` | `yourorg/custom-frontend` |
 | `FRONTEND_REF` | `main` | `release-v2.0` |
-| `BACKEND_REPO` | `QuantTraderTools/QuantCopier` | `yourorg/custom-backend` |
+| `BACKEND_REPO` | `diliprk/quantcopier` | `yourorg/custom-backend` |
 | `BACKEND_REF` | `main` | `dev` |
 
 ### 6. Test the Workflow
@@ -157,7 +157,7 @@ QuantCopierReleaseNotes (Orchestrator Repo)
 └── README.md
 
 External Repos (checked out during workflow):
-├── QuantCopierTelegramUI (Frontend)
+├── QuantCopierUI (Frontend)
 │   ├── src-tauri/                 # Tauri app
 │   │   └── binaries/              # Sidecar binary placed here
 │   ├── app/                       # Next.js frontend

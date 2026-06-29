@@ -24,7 +24,7 @@ env:
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
   FRONTEND_REF: ${{ vars.FRONTEND_REF || 'main' }}
   FRONTEND_PATH: "frontend"
-  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'diliprk/quantcopier' }}
+  BACKEND_REPO: ${{ vars.BACKEND_REPO || 'https://github.com/diliprk/quantcopier' }}
   BACKEND_REF: ${{ vars.BACKEND_REF || 'main' }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
@@ -174,7 +174,7 @@ jobs:
             Write-Host "✓ Updated Inno Setup: version=$version"
           }
 
-          # Update tauri.conf.json (embeds into QuantCopierTelegramUI.exe PE header)
+          # Update tauri.conf.json (embeds into QuantCopierUI.exe PE header)
           $tauriConf = "${{ env.FRONTEND_PATH }}/src-tauri/tauri.conf.json"
           if (Test-Path $tauriConf) {
             $content = Get-Content $tauriConf -Raw
@@ -422,7 +422,7 @@ jobs:
       - name: Locate and copy raw Tauri UI executable
         shell: pwsh
         run: |
-          $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierTelegramUI.exe"
+          $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierUI.exe"
           if (-not (Test-Path $src)) {
             $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5.exe"
           }
@@ -432,10 +432,10 @@ jobs:
                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
           }
           if (-not $src -or -not (Test-Path $src)) { Write-Error "Tauri raw executable not found"; exit 1 }
-          $dest = Join-Path $env:RUNNER_TEMP "QuantCopierTelegramUI.exe"
+          $dest = Join-Path $env:RUNNER_TEMP "QuantCopierUI.exe"
           Copy-Item -Path $src -Destination $dest -Force
           echo "RAW_UI_PATH=$dest" >> $env:GITHUB_ENV
-          echo "RAW_UI_NAME=QuantCopierTelegramUI.exe" >> $env:GITHUB_ENV
+          echo "RAW_UI_NAME=QuantCopierUI.exe" >> $env:GITHUB_ENV
           Write-Host "Raw UI executable copied to: $dest"
 
 
@@ -495,10 +495,10 @@ jobs:
         shell: pwsh
         run: |
           $src = "${{ steps.inno_run.outputs.FINAL_INSTALLER }}"
-          $dest = Join-Path $env:RUNNER_TEMP "QuantCopier.exe"
+          $dest = Join-Path $env:RUNNER_TEMP "QuantCopierMT5TelegramSetup.exe"
           Copy-Item -Path $src -Destination $dest -Force
           echo "NORMALIZED_INSTALLER_PATH=$dest" >> $env:GITHUB_ENV
-          echo "NORMALIZED_INSTALLER_NAME=QuantCopier.exe" >> $env:GITHUB_ENV
+          echo "NORMALIZED_INSTALLER_NAME=QuantCopierMT5TelegramSetup.exe" >> $env:GITHUB_ENV
           Write-Host "Normalized installer: $dest"
 
       - name: Generate releases.json for auto-update
@@ -510,7 +510,7 @@ jobs:
           $releasesJsonPath = Join-Path $env:RUNNER_TEMP "releases.json"
 
           # Use canonical artifact filenames
-          $installerFile = "QuantCopierTelegramUI.exe"
+          $installerFile = "QuantCopierMT5TelegramSetup.exe"
           $apiFile = "QuantCopierAPI.exe"
           $baseUrl = "https://storage.googleapis.com/$bucket/Telegram/$releaseTag/"
 
@@ -583,22 +583,22 @@ jobs:
           $releaseTag = "v$version"
           
           # Public installer
-          $publicInstallerName = "QuantCopierMT5Telegram.exe"
+          $publicInstallerName = "QuantCopierMT5TelegramSetup.exe"
           $publicInstallerPath = "$env:NORMALIZED_INSTALLER_PATH"
 
           # Auto-update artifacts
-          $uiName = "QuantCopierTelegramUI.exe"
+          $uiName = "QuantCopierUI.exe"
           $uiPath = "$env:RAW_UI_PATH"
 
           $apiName = "QuantCopierAPI.exe"
           $apiPath = "$env:NORMALIZED_API_SIDECAR_PATH"
 
-          # 1. Upload public installer (QuantCopierMT5Telegram.exe)
+          # 1. Upload public installer (QuantCopierMT5TelegramSetup.exe)
           $dest = "Telegram/$releaseTag/$publicInstallerName"
           Write-Host "Uploading public installer to GCS: $dest"
           Invoke-Upload -Source "$publicInstallerPath" -Destination $dest
 
-          # 2. Upload raw UI executable (QuantCopierTelegramUI.exe)
+          # 2. Upload raw UI executable (QuantCopierUI.exe)
           $uiDest = "Telegram/$releaseTag/$uiName"
           Write-Host "Uploading raw UI executable to GCS: $uiDest"
           Invoke-Upload -Source "$uiPath" -Destination $uiDest
@@ -650,7 +650,7 @@ jobs:
           import google.auth.transport.requests
           import google.oauth2.id_token
 
-          key_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+          key_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'FIREBASE_SERVICE_ACCOUNT_KEY')
           if not key_path:
               print("GOOGLE_APPLICATION_CREDENTIALS not found!")
               exit(1)
@@ -710,12 +710,12 @@ jobs:
           @"
           ## ✅ Full Installer Pipeline Complete
           - Release tag: `${{ env.RELEASE_TAG }}`
-          - Installer: `QuantCopierMT5Telegram.exe`
-          - Raw UI App: `QuantCopierTelegramUI.exe`
+          - Installer: `QuantCopierMT5TelegramSetup.exe`
+          - Raw UI App: `QuantCopierUI.exe`
           - API Sidecar: `QuantCopierAPI.exe`
           - QuantCopier Sidecar: `QuantCopierTelegram.exe`
-          - Firebase Installer path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierMT5Telegram.exe
-          - Firebase Raw UI path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierTelegramUI.exe
+          - Firebase Installer path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierMT5TelegramSetup.exe
+          - Firebase Raw UI path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierUI.exe
           - API Sidecar Firebase path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierAPI.exe
           - QuantCopier Sidecar Firebase path: gs://${{ env.FIREBASE_BUCKET }}/${{ env.RELEASE_TAG }}/QuantCopierTelegram.exe
           - releases.json: ${{ env.RELEASES_JSON_URL }}
