@@ -121,7 +121,7 @@ To override default repo/branch:
 | Variable Name | Default | Override Example |
 |------------|-------|---------|
 | `FRONTEND_REPO` | `QuantTraderTools/QuantCopierUI` | `yourorg/custom-frontend` |
-| `FRONTEND_REF` | `main` | `release-v2.0` |
+| `FRONTEND_REF` | `telegram` | `release-v0.1.0` |
 | `BACKEND_REPO` | `diliprk/quantcopier` | `yourorg/custom-backend` |
 | `BACKEND_REF` | `telegram` | `dev` |
 

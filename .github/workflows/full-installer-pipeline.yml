@@ -15,7 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
+  packages: read
 
 env:
   NODE_VERSION: "22"
@@ -735,3 +736,167 @@ jobs:
           - API Sidecar Download URL: ${{ env.API_SIDECAR_FIREBASE_URL }}
           - QuantCopier Download URL: ${{ env.QuantCopier_FIREBASE_URL }}
           "@ >> $env:GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # Job 2: Create GitHub Release (runs after build succeeds)
+  # ============================================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-full-installer
+
+    steps:
+      - name: Checkout QuantCopierReleaseNotes repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Extract version from DEPLOYMENT.md
+        id: version
+        shell: bash
+        run: |
+          FILE="md_docs/DEPLOYMENT.md"
+
+          # Try "Current Version: X.Y.Z"
+          VERSION=$(grep -oP 'Current Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$FILE" | head -1)
+
+          # Try VERSION TO BUILD section
+          if [ -z "$VERSION" ]; then
+            VERSION=$(awk '/VERSION TO BUILD:/,/```/' "$FILE" | grep -oP '^\d+\.\d+\.\d+$' | head -1)
+          fi
+
+          # Fallback: first version-like pattern anywhere
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -oP '\d+\.\d+\.\d+' "$FILE" | head -1)
+          fi
+
+          if [ -z "$VERSION" ]; then
+            echo "\u274c Could not extract version from DEPLOYMENT.md"
+            exit 1
+          fi
+
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "\u274c Extracted value '$VERSION' is not a valid version"
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
+          echo "\u2705 Extracted version: $VERSION"
+
+      - name: Checkout QuantCopierUI repo
+        uses: actions/checkout@v4
+        with:
+          repository: QuantTraderTools/QuantCopierUI
+          path: quantcopier-ui
+          fetch-depth: 0
+          token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+
+      - name: Check if release already exists
+        id: check-release
+        shell: bash
+        working-directory: quantcopier-ui
+        run: |
+          TAG="${{ steps.version.outputs.TAG }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "\u26a0\ufe0f  Tag $TAG already exists, skipping"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "\u2705 Tag $TAG does not exist, will create"
+          fi
+
+      - name: Create git tag and push
+        if: steps.check-release.outputs.exists == 'false'
+        shell: bash
+        working-directory: quantcopier-ui
+        env:
+          CUSTOM_PAT: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.TAG }}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag "$TAG" -m "Release $TAG - Automated from installer build"
+          git remote set-url origin "https://x-access-token:${CUSTOM_PAT}@github.com/QuantTraderTools/QuantCopierUI.git"
+          git push origin "$TAG"
+          echo "\u2705 Created and pushed tag: $TAG"
+
+      - name: Create GitHub Release on QuantCopierUI
+        if: steps.check-release.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const version = "${{ steps.version.outputs.VERSION }}";
+            const tag = "${{ steps.version.outputs.TAG }}";
+
+            let releaseBody = `## Release ${tag}\n\nAutomatically generated from installer build pipeline.\n\nView release notes at: https://releases.quanttradertools.com/`;
+
+            try {
+              if (fs.existsSync('md_docs/LATEST_RELEASE.md')) {
+                const customNotes = fs.readFileSync('md_docs/LATEST_RELEASE.md', 'utf8');
+                if (customNotes && customNotes.trim().length > 0) {
+                  releaseBody = customNotes + `\n\n---\n*Automatically generated from installer build pipeline.*\n*View release notes at: https://releases.quanttradertools.com/*`;
+                }
+              }
+            } catch (err) {
+              console.log('Error reading LATEST_RELEASE.md, using default body:', err);
+            }
+
+            try {
+              const release = await github.rest.repos.createRelease({
+                owner: "QuantTraderTools",
+                repo: "QuantCopierUI",
+                tag_name: tag,
+                name: `Release ${tag}`,
+                body: releaseBody,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`\u2705 Created release: ${release.data.html_url}`);
+            } catch (error) {
+              if (error.status === 422) {
+                console.log(`\u26a0\ufe0f  Release for ${tag} already exists`);
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Create tag on quantcopier repo
+        if: steps.check-release.outputs.exists == 'false'
+        shell: bash
+        run: |
+          TAG="${{ steps.version.outputs.TAG }}"
+
+          if [ ! -d "quantcopier" ]; then
+            git clone https://${{ secrets.BACKEND_REPO_TOKEN }}@github.com/diliprk/quantcopier.git quantcopier
+          fi
+
+          cd quantcopier
+          git fetch origin
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "\u26a0\ufe0f  Tag $TAG already exists on quantcopier"
+          else
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git tag "$TAG" -m "Release $TAG - Synced from QuantCopierUI"
+            git push origin "$TAG"
+            echo "\u2705 Created tag $TAG on quantcopier repo"
+          fi
+
+      - name: Summary
+        if: steps.check-release.outputs.exists == 'false'
+        shell: bash
+        run: |
+          echo "\u2705 Release created successfully!"
+          echo "  - Version: ${{ steps.version.outputs.VERSION }}"
+          echo "  - Tag: ${{ steps.version.outputs.TAG }}"
+          echo "  - Release URL: https://github.com/QuantTraderTools/QuantCopierUI/releases/tag/${{ steps.version.outputs.TAG }}"
+
+      - name: Release already exists
+        if: steps.check-release.outputs.exists == 'true'
+        shell: bash
+        run: |
+          echo "\u26a0\ufe0f  Release ${{ steps.version.outputs.TAG }} already exists - no action taken"
