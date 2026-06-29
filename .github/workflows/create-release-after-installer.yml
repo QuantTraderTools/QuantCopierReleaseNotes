@@ -145,30 +145,30 @@ jobs:
               }
             }
 
-      - name: Create release on QuantCopier repo
+      - name: Create release on quantcopier repo
         if: steps.check-release.outputs.exists == 'false'
         shell: bash
         run: |
           TAG="${{ steps.version.outputs.TAG }}"
           VERSION="${{ steps.version.outputs.VERSION }}"
           
-          # Check if QuantCopier repo is already cloned
-          if [ ! -d "QuantCopier" ]; then
-            git clone https://${{ secrets.GH_PAT }}@github.com/QuantTraderTools/QuantCopier.git QuantCopier
+          # Check if quantcopier repo is already cloned
+          if [ ! -d "quantcopier" ]; then
+            git clone https://${{ secrets.BACKEND_REPO_TOKEN }}@github.com/diliprk/quantcopier.git quantcopier
           fi
           
-          cd QuantCopier
+          cd quantcopier
           git fetch origin
           
           # Check if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "⚠️  Tag $TAG already exists on QuantCopier"
+            echo "⚠️  Tag $TAG already exists on quantcopier"
           else
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             git tag "$TAG" -m "Release $TAG - Synced from QuantCopierUI"
             git push origin "$TAG"
-            echo "✅ Created tag $TAG on QuantCopier repo"
+            echo "✅ Created tag $TAG on quantcopier repo"
           fi
 
       - name: Trigger release notes fetch
