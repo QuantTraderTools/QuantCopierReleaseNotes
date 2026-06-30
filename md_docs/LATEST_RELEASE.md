@@ -7,14 +7,5 @@ Important formatting rules:
 2. Use standard bullet points (`-`) for each item.
 -->
 
-## Features
-- Added About pop up modal to the UI sidebar; 
-- Displays current UI app version number 
-- Has functions to check for latest Versions, Download and Install them; 
-- Added Visit Release Notes site link
-
 ## Improvements
-- Added new specific Release Notes sites according to particular branch
-
-## Bug Fixes
-- Reverted API ports back to 8000 across all components of QuantCopierUI
+Removed irrelevant phrases like `Trade Idea` and other noisy content from `Signal` type messages

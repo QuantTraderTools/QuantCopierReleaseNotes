@@ -1,8 +1,9 @@
 name: Full Windows Installer Pipeline
 
 on:
-  release:
-    types: [published]
+  push:
+    paths:
+      - 'VERSION'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -67,31 +68,31 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          # Priority 1: Read from markdown file (source of truth)
-          $markdownFile = "md_docs/DEPLOYMENT.md"
+          # Priority 1: Read from VERSION file (source of truth)
+          $versionFile = "VERSION"
           $version = $null
           
-          if (Test-Path $markdownFile) {
-            $content = Get-Content $markdownFile -Raw
-            if ($content -match 'Current Version:\s*(\d+\.\d+\.\d+)') {
-              $version = $matches[1]
-              Write-Host "✓ Found version in markdown (Current Version): $version"
-            } elseif ($content -match 'VERSION TO BUILD:.*?(\d+\.\d+\.\d+)') {
-              $version = $matches[1]
-              Write-Host "✓ Found version in markdown (VERSION TO BUILD): $version"
-            } elseif ($content -match '(\d+\.\d+\.\d+)') {
-              $version = $matches[1]
-              Write-Host "✓ Found generic version pattern in markdown: $version"
+          if (Test-Path $versionFile) {
+            $content = (Get-Content $versionFile -Raw).Trim()
+            if ($content -match '^\d+\.\d+\.\d+.*$') {
+              $version = $matches[0]
+              Write-Host "✓ Found version in VERSION file: $version"
+            } else {
+              # Fallback if there's surrounding text
+              if ($content -match '(\d+\.\d+\.\d+)') {
+                $version = $matches[1]
+                Write-Host "✓ Found generic version pattern in VERSION file: $version"
+              }
             }
           }
           
-          # Priority 2: Extract from GitHub release tag
+          # Priority 2: Extract from GitHub workflow_dispatch input
           if (-not $version) {
-            if ("${{ github.event_name }}" -eq "release") {
-              $tag = "${{ github.event.release.tag_name }}"
+            if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+              $tag = "${{ github.event.inputs.release_tag }}"
               if ($tag -match "^v?(\d+\.\d+\.\d+.*)$") {
                 $version = $matches[1]
-                Write-Host "✓ Found version in release tag: $version"
+                Write-Host "✓ Found version in manual input: $version"
               }
             }
           }
@@ -751,38 +752,37 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Extract version from DEPLOYMENT.md
+      - name: Extract version from VERSION file
         id: version
         shell: bash
         run: |
-          FILE="md_docs/DEPLOYMENT.md"
+          FILE="VERSION"
 
-          # Try "Current Version: X.Y.Z"
-          VERSION=$(grep -oP 'Current Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+' "$FILE" | head -1)
-
-          # Try VERSION TO BUILD section
-          if [ -z "$VERSION" ]; then
-            VERSION=$(awk '/VERSION TO BUILD:/,/```/' "$FILE" | grep -oP '^\d+\.\d+\.\d+$' | head -1)
+          if [ ! -f "$FILE" ]; then
+            echo "❌ VERSION file not found"
+            exit 1
           fi
 
-          # Fallback: first version-like pattern anywhere
-          if [ -z "$VERSION" ]; then
+          VERSION=$(cat "$FILE" | tr -d '[:space:]')
+
+          # Extract first version-like pattern just in case
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+.*$'; then
             VERSION=$(grep -oP '\d+\.\d+\.\d+' "$FILE" | head -1)
           fi
 
           if [ -z "$VERSION" ]; then
-            echo "\u274c Could not extract version from DEPLOYMENT.md"
+            echo "❌ Could not extract version from VERSION file"
             exit 1
           fi
 
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "\u274c Extracted value '$VERSION' is not a valid version"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+.*$'; then
+            echo "❌ Extracted value '$VERSION' is not a valid version"
             exit 1
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
-          echo "\u2705 Extracted version: $VERSION"
+          echo "✅ Extracted version: $VERSION"
 
       - name: Checkout QuantCopierUI repo
         uses: actions/checkout@v4
