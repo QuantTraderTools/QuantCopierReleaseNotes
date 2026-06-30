@@ -814,8 +814,8 @@ jobs:
           CUSTOM_PAT: ${{ secrets.FRONTEND_REPO_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.TAG }}"
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "diliprk"
+          git config user.email "diliprajkumar@gmail.com"
           git tag "$TAG" -m "Release $TAG - Automated from installer build"
           git remote set-url origin "https://x-access-token:${CUSTOM_PAT}@github.com/QuantTraderTools/QuantCopierUI.git"
           git push origin "$TAG"
@@ -879,8 +879,8 @@ jobs:
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "\u26a0\ufe0f  Tag $TAG already exists on quantcopier"
           else
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
+            git config user.name "diliprk"
+            git config user.email "diliprajkumar@gmail.com"
             git tag "$TAG" -m "Release $TAG - Synced from QuantCopierUI"
             git push origin "$TAG"
             echo "\u2705 Created tag $TAG on quantcopier repo"
