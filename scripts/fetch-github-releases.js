@@ -20,6 +20,7 @@ const OUTPUT_FILE = path.join(__dirname, '../public/releases.json');
  */
 function fetchGitHubReleases() {
   return new Promise((resolve, reject) => {
+    const token = process.env.FRONTEND_REPO_TOKEN || process.env.GITHUB_TOKEN;
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${OWNER}/${REPO}/releases`,
@@ -27,7 +28,7 @@ function fetchGitHubReleases() {
       headers: {
         'User-Agent': 'QuantCopier-Release-Notes',
         'Accept': 'application/vnd.github.v3+json',
-        ...(process.env.GITHUB_TOKEN && { 'Authorization': `token ${process.env.GITHUB_TOKEN}` })
+        ...(token && { 'Authorization': `token ${token}` })
       }
     };
 
@@ -155,7 +156,7 @@ async function main() {
     fs.mkdirSync(path.dirname(OUTPUT_FILE), { recursive: true });
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify({ releases: [] }, null, 2));
 
-    process.exit(1);
+    process.exit(0);
   }
 }
 
