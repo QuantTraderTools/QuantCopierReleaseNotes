@@ -3,8 +3,7 @@
  * Fetches and parses GitHub releases
  */
 
-import { releaseConfig } from '@/config/releases.config';
-import { siteConfig } from '@/config/site.config';
+
 
 export interface Release {
   version: string;
@@ -18,75 +17,47 @@ export interface Release {
 }
 
 export async function fetchGitHubReleases(): Promise<Release[]> {
-  const { owner, repo, token } = siteConfig.github;
-
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/releases`,
-      {
-        headers: token ? { Authorization: `token ${token}` } : {},
-        next: { revalidate: 300 }, // Cache for 5 minutes
-      }
-    );
+    const response = await fetch('/releases.json', {
+      next: { revalidate: 300 }, // Cache for 5 minutes
+    });
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.statusText}`);
+      throw new Error(`Failed to fetch releases.json: ${response.statusText}`);
     }
 
-    const releases = await response.json();
-    return releases
-      .filter((release: any) => !release.tag_name.startsWith('discord-'))
-      .map((release: any) => parseRelease(release));
+    const data = await response.json();
+    
+    // Map the simplified format from releases.json to the full Release interface
+    return data.releases.map((release: any) => {
+      // Reconstruct the sections object
+      const sections: Record<string, string[]> = {};
+      
+      if (release.features && release.features.length > 0) {
+        sections.features = release.features;
+      }
+      if (release.fixes && release.fixes.length > 0) {
+        sections.fixes = release.fixes;
+      }
+      if (release.improvements && release.improvements.length > 0) {
+        sections.improvements = release.improvements;
+      }
+      if (release.breaking && release.breaking.length > 0) {
+        sections.breaking = release.breaking;
+      }
+      if (release.security && release.security.length > 0) {
+        sections.security = release.security;
+      }
+
+      return {
+        ...release,
+        sections
+      };
+    });
   } catch (error) {
     console.error('Failed to fetch releases:', error);
     return [];
   }
 }
 
-function parseRelease(release: any): Release {
-  const version = release.tag_name.replace(/^v/, '');
-  const sections = parseReleaseBody(release.body || '');
 
-  return {
-    version,
-    title: release.name || `Release ${version}`,
-    date: new Date(release.published_at).toLocaleDateString(
-      releaseConfig.dateFormat.locale,
-      releaseConfig.dateFormat.options
-    ),
-    prerelease: release.prerelease,
-    draft: release.draft,
-    sections,
-    url: release.html_url,
-    body: release.body || '',
-  };
-}
-
-export function parseReleaseBody(
-  body: string
-): Record<string, string[]> {
-  const sections: Record<string, string[]> = {};
-
-  // Parse each configured section
-  Object.entries(releaseConfig.sections).forEach(([key, config]) => {
-    const regex = new RegExp(
-      `${config.heading}\\s*\\n([\\s\\S]*?)(?=##|$)`,
-      'i'
-    );
-    const match = body.match(regex);
-
-    if (match) {
-      const items = match[1]
-        .split('\n')
-        .filter((line) => line.trim().startsWith('-'))
-        .map((line) => line.replace(/^\\s*-\\s*/, '').trim())
-        .filter((item) => item.length > 0);
-
-      if (items.length > 0) {
-        sections[key] = items;
-      }
-    }
-  });
-
-  return sections;
-}

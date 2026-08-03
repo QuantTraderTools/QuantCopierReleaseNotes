@@ -1,6 +1,6 @@
 # QuantCopier Release Notes Deployment Guide
 
-> **Current Version: 0.1.0**
+> **Current Version: 0.1.1**
 
 ## How to Release a New Version
 
@@ -11,9 +11,11 @@
 5. Release notes site fetches and displays new version
 
 ### VERSION TO BUILD:
+
 ```
-0.1.0
+0.1.1
 ```
+
 **Edit the version above ↑ and commit to trigger release automation**
 
 ---
@@ -62,6 +64,7 @@ firebase init hosting
 ```
 
 When prompted:
+
 - **Select project**: Choose the project you created
 - **Public directory**: Type `.next/standalone/public` (or just `.` for static build)
 - **Single page app**: Type `n` (No)
@@ -92,9 +95,10 @@ firebase deploy --only hosting
 
 ## Updating Release Notes (Automated)
 
-The release notes are now fully automated and generated from your GitHub pipeline! 
+The release notes are now fully automated and generated from your GitHub pipeline!
 
 To add features and fixes to a new release:
+
 1. Open the file `md_docs/LATEST_RELEASE.md` in this repository.
 2. Fill out the `## Features`, `## Improvements`, and `## Bug Fixes` sections as needed.
 3. Update the version number at the top of this `DEPLOYMENT.md` file.
@@ -123,12 +127,12 @@ After deployment is live:
 
 ## Common Issues & Fixes
 
-| Issue | Solution |
-|-------|----------|
-| DNS not resolving | Wait 24-48 hours, or check domain registrar DNS settings |
-| Deploy fails | Run `firebase login` and verify project with `firebase use` |
-| Page shows 404 | Build project first: `npm run build` |
-| Custom domain not showing | Check Firebase Console → Hosting → Domains section |
+| Issue                     | Solution                                                    |
+| ------------------------- | ----------------------------------------------------------- |
+| DNS not resolving         | Wait 24-48 hours, or check domain registrar DNS settings    |
+| Deploy fails              | Run `firebase login` and verify project with `firebase use` |
+| Page shows 404            | Build project first: `npm run build`                        |
+| Custom domain not showing | Check Firebase Console → Hosting → Domains section          |
 
 ## File Locations
 

@@ -21,6 +21,13 @@ const OUTPUT_FILE = path.join(__dirname, '../public/releases.json');
 function fetchGitHubReleases() {
   return new Promise((resolve, reject) => {
     const token = process.env.FRONTEND_REPO_TOKEN || process.env.GITHUB_TOKEN;
+    
+    if (token) {
+      console.log(`🔑 Using GitHub token for authentication (length: ${token.length})`);
+    } else {
+      console.log('⚠️ No GitHub token found in environment variables (FRONTEND_REPO_TOKEN or GITHUB_TOKEN). Attempting unauthenticated request...');
+    }
+
     const options = {
       hostname: 'api.github.com',
       path: `/repos/${OWNER}/${REPO}/releases`,
@@ -28,7 +35,7 @@ function fetchGitHubReleases() {
       headers: {
         'User-Agent': 'QuantCopier-Release-Notes',
         'Accept': 'application/vnd.github.v3+json',
-        ...(token && { 'Authorization': `token ${token}` })
+        ...(token && { 'Authorization': `Bearer ${token}` })
       }
     };
 

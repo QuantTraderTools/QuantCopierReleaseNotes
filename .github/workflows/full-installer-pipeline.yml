@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'VERSION'
+      - '.github/workflows/full-installer-pipeline.yml'
   workflow_dispatch:
     inputs:
       release_tag:
@@ -141,20 +142,17 @@ jobs:
           }
 
           # Update QuantCopier version_info.txt (PyInstaller Windows PE metadata)
-          $QuantCopierVersionFile = "${{ env.BACKEND_PATH }}/version_info.txt"
+          # Update QuantCopier file_version_info.txt (PyInstaller Windows PE metadata)
+          $verTuple = ($version -split '\.' | ForEach-Object { [int]$_ }) + 0
+          $verTuple = ($verTuple[0..2] -join ', ') + ', 0'
+          $QuantCopierVersionFile = "${{ env.BACKEND_PATH }}/file_version_info.txt"
           if (Test-Path $QuantCopierVersionFile) {
-            $parts = $version -split '\.'
-            $major = if ($parts.Length -gt 0) { $parts[0] } else { '1' }
-            $minor = if ($parts.Length -gt 1) { $parts[1] } else { '0' }
-            $patch = if ($parts.Length -gt 2) { $parts[2] } else { '0' }
-            $tuple = "($major, $minor, $patch, 0)"
-            $vi = Get-Content $QuantCopierVersionFile -Raw
-            $vi = $vi -replace 'filevers\s*=\s*\([^)]+\)', "filevers=$tuple"
-            $vi = $vi -replace 'prodvers\s*=\s*\([^)]+\)', "prodvers=$tuple"
-            $vi = $vi -replace "StringStruct\([uU]?'FileVersion'[^)]*\)", "StringStruct(u'FileVersion',      u'$version.0')"
-            $vi = $vi -replace "StringStruct\([uU]?'ProductVersion'[^)]*\)", "StringStruct(u'ProductVersion',   u'$version')"
-            Set-Content $QuantCopierVersionFile -Value $vi -Encoding UTF8 -NoNewline
-            Write-Host "✓ Updated QuantCopier version_info.txt: version=$version"
+            $content = Get-Content $QuantCopierVersionFile -Raw
+            $content = $content -replace "(?s)(ffi=FixedFileInfo\(.*?filevers=\()\d+,\s*\d+,\s*\d+,\s*\d+(\).*?prodvers=\()\d+,\s*\d+,\s*\d+,\s*\d+(\))", "`${1}$verTuple`${2}$verTuple`${3}"
+            $content = $content -replace "StringStruct\([uU]?'FileVersion',\s*[uU]?'\d+\.\d+\.\d+(?:\.\d+)?'\)", "StringStruct('FileVersion', '$version.0')"
+            $content = $content -replace "StringStruct\([uU]?'ProductVersion',\s*[uU]?'\d+\.\d+\.\d+(?:\.\d+)?'\)", "StringStruct('ProductVersion', '$version.0')"
+            Set-Content $QuantCopierVersionFile -Value $content -Encoding UTF8
+            Write-Host "✓ Updated QuantCopier file_version_info.txt: version=$version"
           }
 
           # Create QuantCopier VERSION file for standalone auto-updater
@@ -426,7 +424,7 @@ jobs:
         run: |
           $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierUI.exe"
           if (-not (Test-Path $src)) {
-            $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5.exe"
+            $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5Telegram.exe"
           }
           if (-not (Test-Path $src)) {
             $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe -Recurse | 
@@ -509,7 +507,9 @@ jobs:
         run: |
           $src = "${{ steps.inno_run.outputs.FINAL_INSTALLER }}"
           $dest = Join-Path $env:RUNNER_TEMP "QuantCopierMT5TelegramSetup.exe"
-          Copy-Item -Path $src -Destination $dest -Force
+          if ($src -ne $dest) {
+            Copy-Item -Path $src -Destination $dest -Force
+          }
           echo "NORMALIZED_INSTALLER_PATH=$dest" >> $env:GITHUB_ENV
           echo "NORMALIZED_INSTALLER_NAME=QuantCopierMT5TelegramSetup.exe" >> $env:GITHUB_ENV
           Write-Host "Normalized installer: $dest"
@@ -536,11 +536,13 @@ jobs:
               mainInstaller = $installerFile
               apiSidecar = $apiFile
               quantcopierSidecar = "QuantCopierTelegram.exe"
+              quantcopierUI = "QuantCopierUI.exe"
             }
             downloads = @{
               mainInstaller = "$baseUrl$installerFile"
               apiSidecar = "$baseUrl$apiFile"
               quantcopierSidecar = "$baseUrl`QuantCopierTelegram.exe"
+              quantcopierUI = "$baseUrl`QuantCopierUI.exe"
             }
           }
 
