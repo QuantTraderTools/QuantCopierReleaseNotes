@@ -2,13 +2,14 @@
   "name": "quantcopier-release-notes",
   "version": "1.0.0",
   "description": "QuantCopier Release Notes and Changelog - Hosted on Firebase",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "npm run fetch:releases && next build",
     "start": "next start",
     "export": "next build && next export",
-    "fetch:releases": "node scripts/fetch-github-releases.js",
-    "generate:releases": "node scripts/generate-releases.js",
+    "fetch:releases": "node --env-file=.env.local scripts/fetch-github-releases.cjs",
+    "generate:releases": "node --env-file=.env.local scripts/generate-releases.cjs",
     "deploy": "npm run build && firebase deploy",
     "ci:build": "npm run fetch:releases && npm run build"
   },
