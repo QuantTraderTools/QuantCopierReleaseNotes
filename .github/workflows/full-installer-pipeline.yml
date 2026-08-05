@@ -412,7 +412,9 @@ jobs:
       - name: Install frontend dependencies
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npm install
+        run: |
+          npm install
+          npm install @tauri-apps/api@2.9.4 @tauri-apps/cli@2.9.4
 
       - name: Build Tauri (Windows)
         shell: pwsh
