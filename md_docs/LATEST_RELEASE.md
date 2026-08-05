@@ -1,5 +1,5 @@
 ## Improvements
 
-- Version reset to 0.1.1 for a fresh release cycle.
+- Version updated to 0.1.3.
 - Stability and performance improvements.
 - Various bug fixes and enhancements for better execution.
