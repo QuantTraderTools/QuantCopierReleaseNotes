@@ -362,10 +362,10 @@ jobs:
         working-directory: ${{ env.BACKEND_PATH }}
         run: |
           .\.venv\Scripts\Activate.ps1
-          if (Test-Path QuantCopierDiscord.spec) {
-            pyinstaller QuantCopierDiscord.spec
+          if (Test-Path DiscordTradeBot.spec) {
+            pyinstaller DiscordTradeBot.spec
           } else {
-            pyinstaller --onefile QuantCopierDiscord.py
+            pyinstaller --onefile DiscordTradeBot.py
           }
 
       - name: Locate QuantCopier binary

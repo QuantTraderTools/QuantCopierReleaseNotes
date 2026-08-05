@@ -163,8 +163,8 @@ External Repos (checked out during workflow):
 │   ├── app/                       # Next.js frontend
 │   └── QCDiscordMT5_SetupExe_Spec.iss # Inno Setup script
 └── QuantCopier (Backend)
-    ├── QuantCopierDiscord.py     # Main Python script
-    ├── QuantCopierDiscord.spec   # PyInstaller spec
+    ├── DiscordTradeBot.py     # Main Python script
+    ├── DiscordTradeBot.spec   # PyInstaller spec
     └── requirements.txt           # Python dependencies
 ```
 
