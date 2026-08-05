@@ -1,6 +1,6 @@
 # QuantCopier Release Notes
 
-This is the release notes and changelog page for QuantCopier, a Telegram-to-MT5 signal copier application.
+This is the release notes and changelog page for QuantCopier, a Discord-to-MT5 signal copier application.
 
 ## Project Structure
 

@@ -71,7 +71,7 @@ Complete these steps to activate automated release notes deployment.
 ```markdown
 ## ✨ Features
 - Initial release ready for production
-- Full Telegram integration
+- Full Discord integration
 - MT5 trading support
 
 ## 🐛 Bug Fixes

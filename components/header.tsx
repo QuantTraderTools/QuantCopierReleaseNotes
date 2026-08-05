@@ -11,9 +11,10 @@ import { ThemeToggle } from './theme-toggle';
 import { Moon, Sun, X } from 'lucide-react';
 
 export function Header() {
-  const getTelegramStyles = () => {
-    return { width: '150px', opacity: 1 };
-  };
+  const getDiscordStyles = () => {
+    // Return empty string to prevent server/client hydration mismatch
+    return {}
+  }
 
   return (
     <header>
@@ -25,8 +26,8 @@ export function Header() {
 
           <div className="flex items-center justify-center -mt-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-center">
-              <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />
-              <img src="/QCT_Logo_Dark.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-auto hidden dark:block object-contain transition-all duration-300" />
+              <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getDiscordStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />
+              <img src="/QCT_Logo_Dark.svg" alt="QCT Logo" style={getDiscordStyles()} className="h-auto hidden dark:block object-contain transition-all duration-300" />
             </div>
           </div>
         </div>

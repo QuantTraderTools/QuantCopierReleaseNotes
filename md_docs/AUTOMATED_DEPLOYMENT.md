@@ -60,7 +60,7 @@ Use this format for automatic parsing:
 ```markdown
 ## ✨ Features
 - SMS OTP delivery with automatic fallback
-- Enhanced Telegram session management
+- Enhanced Discord session management
 - New rate limiting controls
 
 ## 🐛 Bug Fixes
@@ -176,7 +176,7 @@ The script generates `public/releases.json` like this:
       "draft": false,
       "features": [
         "SMS OTP delivery with automatic fallback",
-        "Enhanced Telegram session management"
+        "Enhanced Discord session management"
       ],
       "fixes": [
         "Fixed OTP not arriving issue",
@@ -246,7 +246,7 @@ If you edit a release after publishing and need to update the site immediately:
 1. Go to **GitHub → Actions**
 2. Click **"Deploy Release Notes to Firebase"**
 3. Click **"Run workflow"** (blue button)
-4. Select branch: `telegram`
+4. Select branch: `discord`
 5. Click **"Run workflow"**
 6. Workflow executes, deployment happens
 

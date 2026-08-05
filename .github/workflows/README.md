@@ -34,9 +34,9 @@ This directory contains CI/CD workflows for the QuantCopier project release pipe
 
 **Repository Variables (optional):**
 - `FRONTEND_REPO` - Default: `QuantTraderTools/QuantCopierUI`
-- `FRONTEND_REF` - Default: `telegram`
+- `FRONTEND_REF` - Default: `discord`
 - `BACKEND_REPO` - Default: `diliprk/quantcopier`
-- `BACKEND_REF` - Default: `telegram`
+- `BACKEND_REF` - Default: `discord`
 
 **Output:**
 - Installer uploaded to: `gs://<bucket>/installers/<tag>/<filename>.exe`
@@ -121,9 +121,9 @@ To override default repo/branch:
 | Variable Name | Default | Override Example |
 |------------|-------|---------|
 | `FRONTEND_REPO` | `QuantTraderTools/QuantCopierUI` | `yourorg/custom-frontend` |
-| `FRONTEND_REF` | `telegram` | `release-v0.1.0` |
+| `FRONTEND_REF` | `discord` | `release-v0.1.0` |
 | `BACKEND_REPO` | `diliprk/quantcopier` | `yourorg/custom-backend` |
-| `BACKEND_REF` | `telegram` | `dev` |
+| `BACKEND_REF` | `discord` | `dev` |
 
 ### 6. Test the Workflow
 
@@ -161,10 +161,10 @@ External Repos (checked out during workflow):
 │   ├── src-tauri/                 # Tauri app
 │   │   └── binaries/              # Sidecar binary placed here
 │   ├── app/                       # Next.js frontend
-│   └── QCTelegramMT5_SetupExe_Spec.iss # Inno Setup script
+│   └── QCDiscordMT5_SetupExe_Spec.iss # Inno Setup script
 └── QuantCopier (Backend)
-    ├── QuantCopierTelegram.py     # Main Python script
-    ├── QuantCopierTelegram.spec   # PyInstaller spec
+    ├── QuantCopierDiscord.py     # Main Python script
+    ├── QuantCopierDiscord.spec   # PyInstaller spec
     └── requirements.txt           # Python dependencies
 ```
 
