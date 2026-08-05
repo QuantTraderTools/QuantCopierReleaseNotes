@@ -25,10 +25,10 @@ env:
   RUST_TOOLCHAIN: "stable"
   PYTHON_VERSION: "3.x"
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
-  FRONTEND_REF: ${{ vars.FRONTEND_REF || 'discord' }}
+  FRONTEND_REF: ${{ vars.FRONTEND_REF || github.ref_name }}
   FRONTEND_PATH: "frontend"
   BACKEND_REPO: ${{ 'diliprk/quantcopier' }}
-  BACKEND_REF: ${{ vars.BACKEND_REF || 'discord' }}
+  BACKEND_REF: ${{ vars.BACKEND_REF || github.ref_name }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
 
