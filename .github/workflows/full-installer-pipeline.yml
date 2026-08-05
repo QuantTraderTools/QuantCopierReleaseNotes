@@ -412,7 +412,7 @@ jobs:
       - name: Install frontend dependencies
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npm ci
+        run: npm install
 
       - name: Build Tauri (Windows)
         shell: pwsh
