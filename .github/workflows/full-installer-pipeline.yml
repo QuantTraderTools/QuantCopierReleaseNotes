@@ -429,7 +429,7 @@ jobs:
             $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5Discord.exe"
           }
           if (-not (Test-Path $src)) {
-            $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe -Recurse | 
+            $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe | 
                    Where-Object { $_.Name -like "*QuantCopier*" -and $_.Name -notlike "*API*" } | 
                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
           }
@@ -499,7 +499,8 @@ jobs:
         shell: pwsh
         run: |
           & "$env:ISCC_PATH" "${{ steps.inno_prep.outputs.INNO_ISS }}"
-          $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed"; exit 1 }
+          $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $output) { Write-Error "Inno output exe not found"; exit 1 }
           echo "FINAL_INSTALLER=$($output.FullName)" >> $env:GITHUB_OUTPUT
           echo "FINAL_INSTALLER_NAME=$($output.Name)" >> $env:GITHUB_OUTPUT
