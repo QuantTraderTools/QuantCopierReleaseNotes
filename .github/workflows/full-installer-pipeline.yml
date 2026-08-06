@@ -854,7 +854,8 @@ jobs:
                 name: `Release ${tag}`,
                 body: releaseBody,
                 draft: false,
-                prerelease: false
+                prerelease: false,
+                make_latest: "true"
               });
               console.log(`\u2705 Created release: ${release.data.html_url}`);
             } catch (error) {
