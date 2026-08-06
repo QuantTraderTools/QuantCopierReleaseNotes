@@ -105,7 +105,9 @@ function parseReleaseBody(body) {
 }
 
 function convertToReleasesFormat(githubReleases) {
-  return githubReleases.map((release) => {
+  return githubReleases
+    .filter(release => release.tag_name.startsWith('telegram-'))
+    .map((release) => {
     const parsed = parseReleaseBody(release.body);
     return {
       version: release.tag_name.replace(/^(telegram-v|v)/, ''),

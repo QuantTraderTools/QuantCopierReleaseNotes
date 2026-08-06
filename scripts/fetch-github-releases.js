@@ -141,6 +141,7 @@ async function main() {
     }
 
     let converted = releases
+      .filter(ghRelease => ghRelease.tag_name.startsWith('telegram-'))
       .map(ghRelease => {
         // Handle both 'telegram-vX.X.X' and 'vX.X.X' tags
         const isTelegramTag = ghRelease.tag_name.startsWith('telegram-v');
