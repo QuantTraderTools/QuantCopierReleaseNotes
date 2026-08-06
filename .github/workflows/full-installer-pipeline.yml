@@ -528,7 +528,7 @@ jobs:
           $baseUrl = "https://storage.googleapis.com/$bucket/Telegram/$releaseTag/"
 
           $releaseData = @{
-            latest = $releaseTag
+            latest = "v$version"
             version = $version
             url = $baseUrl
             updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -783,7 +783,7 @@ jobs:
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=telegram-v$VERSION" >> $GITHUB_OUTPUT
           echo "✅ Extracted version: $VERSION"
 
       - name: Checkout QuantCopierUI repo
