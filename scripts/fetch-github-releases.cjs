@@ -141,6 +141,7 @@ async function main() {
     }
 
     let converted = releases
+      .filter(ghRelease => ghRelease.tag_name.startsWith('discord-'))
       .map(ghRelease => {
         // Handle both 'discord-vX.X.X' and 'vX.X.X' tags
         const isDiscordTag = ghRelease.tag_name.startsWith('discord-v');
