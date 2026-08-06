@@ -109,8 +109,8 @@ function parseReleaseBody(body) {
 function convertRelease(ghRelease) {
   const { features, fixes, improvements } = parseReleaseBody(ghRelease.body || '');
 
-  // Extract version from tag (v1.2.3 -> 1.2.3)
-  const version = ghRelease.tag_name.replace(/^v/, '');
+  // Extract version from tag (v1.2.3 -> 1.2.3, discord-v1.2.3 -> 1.2.3)
+  const version = ghRelease.tag_name.replace(/^(discord-v|v)/, '');
 
   return {
     version,
@@ -132,38 +132,105 @@ function convertRelease(ghRelease) {
 async function main() {
   try {
     console.log(`📦 Fetching releases from ${OWNER}/${REPO}...`);
-    const releases = await fetchGitHubReleases();
-
-    if (releases.length === 0) {
-      console.warn('⚠️  No releases found. Creating empty releases.json...');
-    } else {
-      console.log(`✓ Found ${releases.length} release(s)`);
+    
+    let releases = [];
+    try {
+      releases = await fetchGitHubReleases();
+    } catch (err) {
+      console.warn(`⚠️ Failed to fetch from GitHub API: ${err.message}. Falling back to local only.`);
     }
 
-    // Convert releases to our format
-    const converted = releases.map(convertRelease);
+    let converted = releases
+      .map(ghRelease => {
+        // Handle both 'discord-vX.X.X' and 'vX.X.X' tags
+        const isDiscordTag = ghRelease.tag_name.startsWith('discord-v');
+        const rawVersion = ghRelease.tag_name.replace(/^(discord-v|v)/, '');
+        return {
+          ...convertRelease(ghRelease),
+          version: rawVersion,
+          isDiscordTag: isDiscordTag
+        };
+      });
 
-    // Filter out drafts if needed (optional)
+    // Deduplicate: If we have both discord-v0.1.6 and v0.1.6, keep the discord one!
+    const uniqueReleases = new Map();
+    converted.forEach(r => {
+      if (!uniqueReleases.has(r.version) || r.isDiscordTag) {
+        uniqueReleases.set(r.version, r);
+      }
+    });
+    converted = Array.from(uniqueReleases.values());
+
+    // Read local files
+    const fs = require('fs');
+    const path = require('path');
+    const versionPath = path.resolve(process.cwd(), 'VERSION');
+    const notesPath = path.resolve(process.cwd(), 'md_docs', 'LATEST_RELEASE.md');
+    
+    let localVersion = null;
+    let localNotes = '';
+    
+    if (fs.existsSync(versionPath) && fs.existsSync(notesPath)) {
+      localVersion = fs.readFileSync(versionPath, 'utf8').trim();
+      localNotes = fs.readFileSync(notesPath, 'utf8');
+      
+      const { features, fixes, improvements } = parseReleaseBody(localNotes);
+      
+      const localRelease = {
+        version: localVersion,
+        title: `Release v${localVersion}`,
+        date: new Date().toISOString().split('T')[0],
+        prerelease: false,
+        draft: false,
+        features: features.length > 0 ? features : [],
+        fixes: fixes.length > 0 ? fixes : [],
+        improvements: improvements.length > 0 ? improvements : [],
+        url: '',
+        body: localNotes
+      };
+      
+      // Inject or replace the local release into the list
+      const existingIndex = converted.findIndex(r => r.version === localVersion);
+      if (existingIndex >= 0) {
+        // Keep the API url and date if available, but overwrite the notes
+        localRelease.url = converted[existingIndex].url || '';
+        localRelease.date = converted[existingIndex].date || localRelease.date;
+        converted[existingIndex] = localRelease;
+        console.log(`✓ Overwrote release v${localVersion} with local Discord notes`);
+      } else {
+        converted.unshift(localRelease);
+        console.log(`✓ Injected local release v${localVersion}`);
+      }
+      // Filter out any newer releases from GitHub API that haven't been released on Discord yet
+      // For example, if Telegram releases v0.1.7 but Discord is still on v0.1.6, we hide v0.1.7 on the Discord site
+      converted = converted.filter(r => {
+        return r.version.localeCompare(localVersion, undefined, { numeric: true, sensitivity: 'base' }) <= 0;
+      });
+      
+    } else {
+      console.warn('⚠️ Could not find local VERSION or LATEST_RELEASE.md files.');
+    }
+
+    // Filter out drafts if needed
     const published = converted.filter(r => !r.draft);
 
-    // Sort by date (newest first)
-    published.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Sort by version (newest first)
+    published.sort((a, b) => b.version.localeCompare(a.version, undefined, { numeric: true }));
 
-    // Write to file
-    const output = { releases: published };
-    fs.mkdirSync(path.dirname(OUTPUT_FILE), { recursive: true });
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
-
-    console.log(`✅ Generated ${OUTPUT_FILE} with ${published.length} published release(s)`);
+    // Create public directory if it doesn't exist
+    const publicDir = path.resolve(process.cwd(), 'public');
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    
+    // Save to public/releases.json
+    const outputFile = path.resolve(publicDir, 'releases.json');
+    fs.writeFileSync(outputFile, JSON.stringify({ releases: published }, null, 2));
+    
+    console.log(`✅ Successfully generated ${outputFile} with ${published.length} release(s)`);
   } catch (error) {
-    console.error('❌ Error:', error.message);
-
-    // Create empty releases.json as fallback
-    console.log('📝 Creating fallback empty releases.json...');
-    fs.mkdirSync(path.dirname(OUTPUT_FILE), { recursive: true });
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify({ releases: [] }, null, 2));
-
-    process.exit(0);
+    console.error('❌ Error in build script:', error);
+    process.exit(1);
   }
 }
 

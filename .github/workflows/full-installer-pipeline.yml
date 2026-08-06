@@ -532,7 +532,7 @@ jobs:
           $baseUrl = "https://storage.googleapis.com/$bucket/Discord/$releaseTag/"
 
           $releaseData = @{
-            latest = $releaseTag
+            latest = "v$version"
             version = $version
             url = $baseUrl
             updatedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -787,7 +787,7 @@ jobs:
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "TAG=v$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=discord-v$VERSION" >> $GITHUB_OUTPUT
           echo "✅ Extracted version: $VERSION"
 
       - name: Checkout QuantCopierUI repo

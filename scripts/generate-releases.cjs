@@ -108,7 +108,7 @@ function convertToReleasesFormat(githubReleases) {
   return githubReleases.map((release) => {
     const parsed = parseReleaseBody(release.body);
     return {
-      version: release.tag_name.replace(/^v/, ''),
+      version: release.tag_name.replace(/^(discord-v|v)/, ''),
       title: release.name || release.tag_name,
       date: new Date(release.published_at).toISOString().split('T')[0],
       prerelease: release.prerelease,
