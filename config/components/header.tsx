@@ -24,10 +24,10 @@ export function Header() {
             Release Notes
           </h1>
           
-          <div className="flex items-center justify-center mt-2 animate-fade-in" style={{ animationDelay: '100ms' }}>
-            <div className="flex items-center justify-center w-full max-w-[320px] sm:max-w-[400px]">
-              <img src="/QCD_Logo_Light.svg" alt="QCD Logo" style={getDiscordStyles()} className="w-full h-auto dark:hidden block object-contain transition-all duration-300" />
-              <img src="/QCD_Logo_Dark.svg" alt="QCD Logo" style={getDiscordStyles()} className="w-full h-auto hidden dark:block object-contain transition-all duration-300" />
+          <div className="flex items-center justify-center mt-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center justify-center">
+              <img src="/QCD_Logo_Light.svg" alt="QCD Logo" style={getDiscordStyles()} className="h-24 md:h-28 w-auto dark:hidden block object-contain transition-all duration-300" />
+              <img src="/QCD_Logo_Dark.svg" alt="QCD Logo" style={getDiscordStyles()} className="h-24 md:h-28 w-auto hidden dark:block object-contain transition-all duration-300" />
             </div>
           </div>
         </div>
