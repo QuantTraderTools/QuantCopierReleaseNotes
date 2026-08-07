@@ -26,8 +26,8 @@ export function Header() {
 
           <div className="flex items-center justify-center -mt-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-center">
-              <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getDiscordStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />
-              <img src="/QCT_Logo_Dark.svg" alt="QCT Logo" style={getDiscordStyles()} className="h-auto hidden dark:block object-contain transition-all duration-300" />
+              <img src="/QCD_Logo_Light.svg" alt="QCD Logo" style={getDiscordStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />
+              <img src="/QCD_Logo_Dark.svg" alt="QCD Logo" style={getDiscordStyles()} className="h-auto hidden dark:block object-contain transition-all duration-300" />
             </div>
           </div>
         </div>

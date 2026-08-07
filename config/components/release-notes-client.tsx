@@ -84,7 +84,7 @@ export function ReleaseNotesClient() {
           <div className="w-full px-6 py-2 md:px-10 flex justify-between items-center">
             {/* Top Left Logo */}
             <div className="flex items-center gap-3">
-              <img src="/qtt-logo.svg" alt="QTT Logo" className="w-10 h-10" />
+              <img src="/qtd-logo.svg" alt="QTD Logo" className="w-10 h-10" />
               <h2 className="text-lg font-mokoto uppercase tracking-wider text-gray-900 dark:text-white">Quant Trader Tools</h2>
             </div>
 
@@ -163,7 +163,7 @@ export function ReleaseNotesClient() {
         <div className="w-full px-6 py-2 md:px-10 flex justify-between items-center">
           {/* Top Left Logo */}
           <div className="flex items-center gap-3">
-            <img src="/qtt-logo.svg" alt="QTT Logo" className="w-10 h-10" />
+            <img src="/qtd-logo.svg" alt="QTD Logo" className="w-10 h-10" />
             <h2 className="text-lg font-mokoto uppercase tracking-wider text-gray-900 dark:text-white">Quant Trader Tools</h2>
           </div>
 
