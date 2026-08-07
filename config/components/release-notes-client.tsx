@@ -91,7 +91,7 @@ export function ReleaseNotesClient() {
             {/* Top Right Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
               <a 
-                href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
+                href="https://quant-copier-discord-release-notes-sp1024243-8782s-projects.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hidden sm:flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -99,7 +99,7 @@ export function ReleaseNotesClient() {
                 Go to QCDiscord ReleaseNotes
               </a>
               <a 
-                href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
+                href="https://quant-copier-discord-release-notes-sp1024243-8782s-projects.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="sm:hidden text-xs font-medium px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -170,7 +170,7 @@ export function ReleaseNotesClient() {
           {/* Top Right Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
             <a 
-              href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
+              href="https://quant-copier-discord-release-notes-sp1024243-8782s-projects.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -178,7 +178,7 @@ export function ReleaseNotesClient() {
               Go to QCDiscord ReleaseNotes
             </a>
             <a 
-              href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
+              href="https://quant-copier-discord-release-notes-sp1024243-8782s-projects.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="sm:hidden text-xs font-medium px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
