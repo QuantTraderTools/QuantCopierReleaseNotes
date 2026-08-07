@@ -2,6 +2,13 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+@font-face {
+  font-family: 'Mokoto';
+  src: url('/fonts/Mokoto.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
 html {
   scroll-behavior: smooth;

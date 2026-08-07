@@ -84,14 +84,14 @@ export function ReleaseNotesClient() {
           <div className="w-full px-6 py-2 md:px-10 flex justify-between items-center">
             {/* Top Left Logo */}
             <div className="flex items-center gap-3">
-              <img src="/qtt-logo.svg" alt="QTT Logo" className="w-10 h-10" />
+              <img src="/qtd-logo.svg" alt="QTT Logo" className="w-12 h-12" />
               <h2 className="text-lg font-mokoto uppercase tracking-wider text-gray-900 dark:text-white">Quant Trader Tools</h2>
             </div>
 
             {/* Top Right Actions */}
             <div className="flex items-center gap-2 sm:gap-4">
               <a 
-                href="https://qc-discord-releasenotes.vercel.app/" 
+                href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hidden sm:flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -99,7 +99,7 @@ export function ReleaseNotesClient() {
                 Go to QCDiscord ReleaseNotes
               </a>
               <a 
-                href="https://qc-discord-releasenotes.vercel.app/" 
+                href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="sm:hidden text-xs font-medium px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -163,14 +163,14 @@ export function ReleaseNotesClient() {
         <div className="w-full px-6 py-2 md:px-10 flex justify-between items-center">
           {/* Top Left Logo */}
           <div className="flex items-center gap-3">
-            <img src="/qtt-logo.svg" alt="QTT Logo" className="w-10 h-10" />
+            <img src="/qtd-logo.svg" alt="QTT Logo" className="w-12 h-12" />
             <h2 className="text-lg font-mokoto uppercase tracking-wider text-gray-900 dark:text-white">Quant Trader Tools</h2>
           </div>
 
           {/* Top Right Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
             <a 
-              href="https://qc-discord-releasenotes.vercel.app/" 
+              href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"
@@ -178,7 +178,7 @@ export function ReleaseNotesClient() {
               Go to QCDiscord ReleaseNotes
             </a>
             <a 
-              href="https://qc-discord-releasenotes.vercel.app/" 
+              href="https://quant-copier-discord-release-notes-htptmusi6.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="sm:hidden text-xs font-medium px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-all border border-blue-200 dark:border-blue-500/20"

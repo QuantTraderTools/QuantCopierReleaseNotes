@@ -12,7 +12,7 @@ import { Moon, Sun, X } from 'lucide-react';
 
 export function Header() {
   const getTelegramStyles = () => {
-    return { width: '150px', opacity: 1 };
+    return {};
   };
 
   return (
@@ -23,14 +23,14 @@ export function Header() {
             Release Notes
           </h1>
 
-          <div className="flex items-center justify-center -mt-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <div className="flex items-center justify-center -mt-4 md:-mt-6 animate-fade-in" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center justify-center">
-              <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-auto dark:hidden block object-contain transition-all duration-300" />
-              <img src="/QCT_Logo_Dark.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-auto hidden dark:block object-contain transition-all duration-300" />
+              <img src="/QCT_Logo_Light.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-32 md:h-40 w-auto dark:hidden block object-contain transition-all duration-300" />
+              <img src="/QCT_Logo_Dark.svg" alt="QCT Logo" style={getTelegramStyles()} className="h-32 md:h-40 w-auto hidden dark:block object-contain transition-all duration-300" />
             </div>
           </div>
         </div>
-        <p className="text-sm -mt-10 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        <p className="text-sm -mt-6 md:-mt-10 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto relative z-10">
           Stay updated with the latest features, fixes, and improvements
         </p>
       </div>
