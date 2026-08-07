@@ -7,6 +7,9 @@
  * Fetches all releases from QuantTraderTools/QuantCopierUI and converts to releases.json format
  */
 
+const { loadEnvConfig } = require('@next/env');
+loadEnvConfig(process.cwd());
+
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
