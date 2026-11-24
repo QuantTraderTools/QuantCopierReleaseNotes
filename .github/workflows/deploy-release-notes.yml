@@ -1,0 +1,74 @@
+name: Deploy Release Notes Site
+
+on:
+  push:
+    paths:
+      - 'components/**'
+      - 'config/**'
+      - 'lib/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'app/**'
+      - 'firebase.json'
+      - '.firebaserc'
+      - 'md_docs/**'
+      - 'package.json'
+      - '.github/workflows/deploy-release-notes.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-release-notes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-site:
+    name: Deploy Release Notes to Firebase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Release Notes repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static site
+        env:
+          FRONTEND_REPO_TOKEN: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        run: npm run build
+
+      - name: Decode Firebase Service Account
+        id: firebase_sa
+        shell: bash
+        run: |
+          SA_B64="${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
+          if [ -n "$SA_B64" ]; then
+            echo "$SA_B64" | base64 -d > "$RUNNER_TEMP/firebase-sa.json"
+            echo "KEY_PATH=$RUNNER_TEMP/firebase-sa.json" >> $GITHUB_OUTPUT
+            echo "has_sa=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_sa=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Site & Deploy
+        if: steps.firebase_sa.outputs.has_sa == 'true'
+        shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase_sa.outputs.KEY_PATH }}
+        run: |
+          PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}"
+          if [ -z "$PROJECT_ID" ]; then
+            PROJECT_ID=$(node -p "try { require('$RUNNER_TEMP/firebase-sa.json').project_id } catch(e) { 'quanttradertools' }")
+          fi
+          echo "Target Firebase Project ID: $PROJECT_ID"
+          
+          echo "Creating site quantcopier-discord-releasenotes if needed..."
+          npx firebase-tools hosting:sites:create quantcopier-discord-releasenotes --project "$PROJECT_ID" || true
+
+          echo "Deploying to hosting:quantcopier-discord-releasenotes..."
+          npx firebase-tools deploy --only hosting:quantcopier-discord-releasenotes --project "$PROJECT_ID"
