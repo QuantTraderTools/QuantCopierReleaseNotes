@@ -1,10 +1,22 @@
 {
   "hosting": {
+    "site": "quantcopier-discord-releasenotes",
     "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/releases.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      }
     ]
   }
 }

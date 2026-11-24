@@ -18,8 +18,8 @@ export interface Release {
 
 export async function fetchGitHubReleases(): Promise<Release[]> {
   try {
-    const response = await fetch('/releases.json', {
-      next: { revalidate: 300 }, // Cache for 5 minutes
+    const response = await fetch(`/releases.json?t=${Date.now()}`, {
+      cache: 'no-store',
     });
 
     if (!response.ok) {

@@ -6,7 +6,7 @@
 export const siteConfig = {
   name: 'QuantCopier Release Notes',
   description: 'Changelog and release information for QuantCopier MT5 Signal Copier',
-  url: 'https://releases.quanttradertools.com',
+  url: 'https://quantcopier-discord-releasenotes.web.app',
   ogImage: 'https://releases.quanttradertools.com/og.png',
 
   // Branding
@@ -53,7 +53,7 @@ export const siteConfig = {
   releases: {
     perPage: 10,
     showPrerelease: false,
-    sortBy: 'date' as const, // 'date' | 'version'
+    sortBy: 'version' as const, // 'date' | 'version'
     sortOrder: 'desc' as const, // 'asc' | 'desc'
   },
 
