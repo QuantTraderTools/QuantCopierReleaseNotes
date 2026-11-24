@@ -442,7 +442,7 @@ jobs:
       - name: Install frontend dependencies
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Tauri (Windows)
         shell: pwsh
@@ -457,6 +457,9 @@ jobs:
             $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5Telegram.exe"
           }
           if (-not (Test-Path $src)) {
+            $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierTelegramUI.exe"
+          }
+          if (-not (Test-Path $src)) {
             $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe -Recurse | 
                    Where-Object { $_.Name -like "*QuantCopier*" -and $_.Name -notlike "*API*" } | 
                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -467,6 +470,14 @@ jobs:
           echo "RAW_UI_PATH=$dest" >> $env:GITHUB_ENV
           echo "RAW_UI_NAME=QuantCopierUI.exe" >> $env:GITHUB_ENV
           Write-Host "Raw UI executable copied to: $dest"
+
+          # Ensure QuantCopierTelegramUI.exe exists in target/release for Inno Setup
+          $targetRelease = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\target\release"
+          $issExe = Join-Path $targetRelease "QuantCopierTelegramUI.exe"
+          if (-not (Test-Path $issExe) -and (Test-Path $src)) {
+            Copy-Item -Path $src -Destination $issExe -Force
+            Write-Host "✓ Ensured QuantCopierTelegramUI.exe exists for Inno Setup at: $issExe"
+          }
 
 
 
@@ -534,7 +545,15 @@ jobs:
         shell: pwsh
         run: |
           & "$env:ISCC_PATH" "${{ steps.inno_prep.outputs.INNO_ISS }}"
-          $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $expectedOutput = Join-Path $env:RUNNER_TEMP "QuantCopierMT5TelegramSetup.exe"
+          if (Test-Path $expectedOutput) {
+            $output = Get-Item $expectedOutput
+          } else {
+            $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*Setup*.exe" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
+          if (-not $output) {
+            $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
           if (-not $output) { Write-Error "Inno output exe not found"; exit 1 }
           echo "FINAL_INSTALLER=$($output.FullName)" >> $env:GITHUB_OUTPUT
           echo "FINAL_INSTALLER_NAME=$($output.Name)" >> $env:GITHUB_OUTPUT
