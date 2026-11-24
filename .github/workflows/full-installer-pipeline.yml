@@ -447,7 +447,7 @@ jobs:
       - name: Build Tauri (Windows)
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npm run tauri build
+        run: npx tauri build --ignore-version-mismatches
 
       - name: Locate and copy raw Tauri UI executable
         shell: pwsh
