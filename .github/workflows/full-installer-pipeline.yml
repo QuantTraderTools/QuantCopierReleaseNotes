@@ -25,10 +25,10 @@ env:
   RUST_TOOLCHAIN: "stable"
   PYTHON_VERSION: "3.x"
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
-  FRONTEND_REF: ${{ vars.FRONTEND_REF || 'telegram' }}
+  FRONTEND_REF: ${{ vars.FRONTEND_REF || 'telegram_ai_parser' }}
   FRONTEND_PATH: "frontend"
   BACKEND_REPO: ${{ 'diliprk/quantcopier' }}
-  BACKEND_REF: ${{ vars.BACKEND_REF || 'telegram' }}
+  BACKEND_REF: ${{ vars.BACKEND_REF || 'telegram_ai_parser' }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
 
@@ -407,6 +407,39 @@ jobs:
           Get-ChildItem -Path $targetDir | Select-Object Name, Length
 
       # ------------------------------
+      # Build AI Parser sidecar
+      # ------------------------------
+      - name: Build and stage AI Parser
+        shell: pwsh
+        working-directory: ${{ env.BACKEND_PATH }}\AI parser
+        run: |
+          ..\.venv\Scripts\Activate.ps1
+          if (Test-Path AI_parser.spec) {
+            pyinstaller AI_parser.spec
+          } else {
+            pyinstaller --onefile main.py --name AI_parser
+          }
+          $targetAiDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\binaries\ai_parser"
+          if (-not (Test-Path $targetAiDir)) { New-Item -ItemType Directory -Force -Path $targetAiDir | Out-Null }
+          $aiExe = Join-Path "dist" "AI_parser.exe"
+          if (Test-Path $aiExe) {
+            Copy-Item $aiExe (Join-Path $targetAiDir "AI_parser.exe") -Force
+            Write-Host "✓ Staged AI_parser.exe into $targetAiDir"
+          } else {
+            Write-Error "AI_parser.exe not found in dist"
+            exit 1
+          }
+          if (Test-Path "parser_config.ini") {
+            Copy-Item "parser_config.ini" (Join-Path $targetAiDir "parser_config.ini") -Force
+            Write-Host "✓ Staged parser_config.ini into $targetAiDir"
+          }
+          if (Test-Path "favicon.ico") {
+            Copy-Item "favicon.ico" (Join-Path $targetAiDir "favicon.ico") -Force
+          }
+          Write-Host "Contents of ai_parser binaries directory:"
+          Get-ChildItem -Path $targetAiDir | Select-Object Name, Length
+
+      # ------------------------------
       # Build Tauri app
       # ------------------------------
       - name: Install frontend dependencies
@@ -441,15 +474,21 @@ jobs:
 
 
 
-      - name: Stage QuantCopierTelegram.exe for Inno Setup
+      - name: Stage QuantCopierTelegram.exe and QuantCopierAPI.exe for Inno Setup
         shell: pwsh
         run: |
-          $src = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
           $releaseDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\target\release"
           if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null }
-          $dest = Join-Path $releaseDir "QuantCopierTelegram.exe"
-          Copy-Item -Path $src -Destination $dest -Force -ErrorAction Stop
-          Write-Host "✓ Staged QuantCopierTelegram.exe for Inno Setup at: $dest"
+          $qcSrc = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
+          $qcDest = Join-Path $releaseDir "QuantCopierTelegram.exe"
+          Copy-Item -Path $qcSrc -Destination $qcDest -Force -ErrorAction Stop
+          Write-Host "✓ Staged QuantCopierTelegram.exe for Inno Setup at: $qcDest"
+          $apiSrc = "${{ steps.api_sidecar.outputs.API_SIDECAR_PATH }}"
+          if (Test-Path $apiSrc) {
+            $apiDest = Join-Path $releaseDir "QuantCopierAPI.exe"
+            Copy-Item -Path $apiSrc -Destination $apiDest -Force -ErrorAction Stop
+            Write-Host "✓ Staged QuantCopierAPI.exe for Inno Setup at: $apiDest"
+          }
 
       - name: Find Tauri installer
         id: tauri_installer
@@ -483,9 +522,11 @@ jobs:
           if (-not $iss) { Write-Error "Inno Setup .iss file not found"; exit 1 }
           $tempIss = Join-Path $env:RUNNER_TEMP "build.iss"
           $content = Get-Content $iss -Raw
-          $appDir = Resolve-Path "."
-          $content = $content -replace '#define ParentPath "\."', "#define ParentPath `"$appDir`""
-          $content = $content -replace 'OutputDir=build', "OutputDir=$env:RUNNER_TEMP"
+          $appDir = (Resolve-Path ".").Path
+          $content = $content -replace '(?m)^#define\s+ParentPath\s+.*$', "#define ParentPath `"$appDir`""
+          $content = $content -replace '(?m)^OutputDir=.*$', "OutputDir=$env:RUNNER_TEMP"
+          $content = $content -replace '\{#ParentPath\}\\QuantCopierTelegramUI', $appDir
+          $content = $content -replace '\{#ParentPath\}/QuantCopierTelegramUI', $appDir
           Set-Content -Path $tempIss -Value $content -Encoding UTF8
           echo "INNO_ISS=$tempIss" >> $env:GITHUB_OUTPUT
           echo "INNO_ISS_NAME=$($iss.Name)" >> $env:GITHUB_OUTPUT
@@ -903,3 +944,50 @@ jobs:
         shell: bash
         run: |
           echo "\u26a0\ufe0f  Release ${{ steps.version.outputs.TAG }} already exists - no action taken"
+
+  # ============================================================
+  # Job 3: Deploy Release Notes Site to Firebase Hosting
+  # ============================================================
+  deploy-release-notes:
+    name: Deploy Release Notes Site
+    runs-on: ubuntu-latest
+    needs: [build-full-installer, create-release]
+    if: always() && needs.build-full-installer.result == 'success'
+
+    steps:
+      - name: Checkout Release Notes repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static site
+        env:
+          FRONTEND_REPO_TOKEN: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        run: npm run build
+
+      - name: Decode Firebase Service Account
+        id: firebase_sa
+        shell: bash
+        run: |
+          SA_B64="${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
+          if [ -n "$SA_B64" ]; then
+            echo "$SA_B64" | base64 -d > "$RUNNER_TEMP/firebase-sa.json"
+            echo "KEY_PATH=$RUNNER_TEMP/firebase-sa.json" >> $GITHUB_OUTPUT
+            echo "has_sa=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_sa=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Firebase Hosting
+        if: steps.firebase_sa.outputs.has_sa == 'true'
+        shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase_sa.outputs.KEY_PATH }}
+        run: |
+          npx firebase-tools deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID || 'quantcopierreleasenotes' }}"
