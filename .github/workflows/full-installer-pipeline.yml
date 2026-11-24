@@ -23,7 +23,7 @@ permissions:
 env:
   NODE_VERSION: "22"
   RUST_TOOLCHAIN: "stable"
-  PYTHON_VERSION: "3.x"
+  PYTHON_VERSION: "3.13"
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
   FRONTEND_REF: ${{ vars.FRONTEND_REF || 'telegram_ai_parser' }}
   FRONTEND_PATH: "frontend"
@@ -351,8 +351,8 @@ jobs:
         run: |
           python -m venv .venv
           .\.venv\Scripts\Activate.ps1
-          python -m pip install --upgrade pip
-          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { .\.venv\Scripts\python.exe -m pip install -r requirements.txt }
 
       - name: Build QuantCopier executable (PyInstaller)
         shell: pwsh
@@ -360,9 +360,9 @@ jobs:
         run: |
           .\.venv\Scripts\Activate.ps1
           if (Test-Path QuantCopierTelegram.spec) {
-            pyinstaller QuantCopierTelegram.spec
+            .\.venv\Scripts\pyinstaller.exe QuantCopierTelegram.spec
           } else {
-            pyinstaller --onefile QuantCopierTelegram.py
+            .\.venv\Scripts\pyinstaller.exe --onefile QuantCopierTelegram.py
           }
 
       - name: Locate QuantCopier binary
@@ -412,9 +412,9 @@ jobs:
         run: |
           ..\.venv\Scripts\Activate.ps1
           if (Test-Path AI_parser.spec) {
-            pyinstaller AI_parser.spec
+            ..\.venv\Scripts\pyinstaller.exe AI_parser.spec
           } else {
-            pyinstaller --onefile main.py --name AI_parser
+            ..\.venv\Scripts\pyinstaller.exe --onefile main.py --name AI_parser
           }
           $targetAiDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\binaries\ai_parser"
           if (-not (Test-Path $targetAiDir)) { New-Item -ItemType Directory -Force -Path $targetAiDir | Out-Null }
