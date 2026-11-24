@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "quantcopier-telegram-releasenotes",
     "public": "out",
     "ignore": [
       "firebase.json",

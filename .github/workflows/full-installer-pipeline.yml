@@ -1016,4 +1016,4 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase_sa.outputs.KEY_PATH }}
         run: |
-          npx firebase-tools deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID || 'quantcopierreleasenotes' }}"
+          npx firebase-tools deploy --only hosting:quantcopier-telegram-releasenotes --project "${{ secrets.FIREBASE_PROJECT_ID || 'quantcopierreleasenotes' }}"
