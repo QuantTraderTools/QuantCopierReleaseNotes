@@ -416,7 +416,8 @@ jobs:
           } else {
             ..\.venv\Scripts\pyinstaller.exe --onefile main.py --name AI_parser
           }
-          $targetAiDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\binaries\ai_parser"
+          $repoRoot = if ($env:GITHUB_WORKSPACE) { $env:GITHUB_WORKSPACE } else { (Resolve-Path "..\..").Path }
+          $targetAiDir = Join-Path $repoRoot "${{ env.FRONTEND_PATH }}\src-tauri\binaries\ai_parser"
           if (-not (Test-Path $targetAiDir)) { New-Item -ItemType Directory -Force -Path $targetAiDir | Out-Null }
           $aiExe = Join-Path "dist" "AI_parser.exe"
           if (Test-Path $aiExe) {
