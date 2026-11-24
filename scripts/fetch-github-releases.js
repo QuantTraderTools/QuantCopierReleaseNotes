@@ -127,44 +127,98 @@ function convertRelease(ghRelease) {
 }
 
 /**
+ * Parse changelog markdown into release objects
+ */
+function parseChangelog(changelogPath) {
+  if (!fs.existsSync(changelogPath)) return [];
+  const content = fs.readFileSync(changelogPath, 'utf8');
+  const versionRegex = /##\s*\[([0-9.]+)\]\s*-\s*([0-9]{4}-[0-9]{2}-[0-9]{2})/g;
+  const releases = [];
+  const matches = [];
+  let match;
+  while ((match = versionRegex.exec(content)) !== null) {
+    matches.push({
+      version: match[1],
+      date: match[2],
+      headerEnd: versionRegex.lastIndex,
+      index: match.index
+    });
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const nextIndex = i + 1 < matches.length ? matches[i + 1].index : content.length;
+    const body = content.slice(m.headerEnd, nextIndex).trim();
+    const { features, fixes, improvements } = parseReleaseBody(body);
+
+    releases.push({
+      version: m.version,
+      title: `Release v${m.version}`,
+      date: m.date,
+      prerelease: false,
+      draft: false,
+      features: features.length > 0 ? features : [],
+      fixes: fixes.length > 0 ? fixes : [],
+      improvements: improvements.length > 0 ? improvements : [],
+      url: '',
+      body: body
+    });
+  }
+  return releases;
+}
+
+/**
  * Main function
  */
 async function main() {
   try {
     console.log(`📦 Fetching releases from ${OWNER}/${REPO}...`);
     
-    let releases = [];
+    let ghReleases = [];
     try {
-      releases = await fetchGitHubReleases();
+      ghReleases = await fetchGitHubReleases();
     } catch (err) {
       console.warn(`⚠️ Failed to fetch from GitHub API: ${err.message}. Falling back to local only.`);
     }
 
-    let converted = releases
-      .filter(ghRelease => ghRelease.tag_name.startsWith('telegram-'))
-      .map(ghRelease => {
-        // Handle both 'telegram-vX.X.X' and 'vX.X.X' tags
-        const isTelegramTag = ghRelease.tag_name.startsWith('telegram-v');
+    const ghMap = new Map();
+    ghReleases
+      .filter(ghRelease => ghRelease.tag_name.startsWith('telegram-') || ghRelease.tag_name.startsWith('v'))
+      .forEach(ghRelease => {
         const rawVersion = ghRelease.tag_name.replace(/^(telegram-v|v)/, '');
-        return {
-          ...convertRelease(ghRelease),
-          version: rawVersion,
-          isTelegramTag: isTelegramTag
-        };
+        if (!ghMap.has(rawVersion) || ghRelease.tag_name.startsWith('telegram-v')) {
+          ghMap.set(rawVersion, ghRelease);
+        }
       });
 
-    // Deduplicate: If we have both telegram-v0.1.6 and v0.1.6, keep the telegram one!
-    const uniqueReleases = new Map();
-    converted.forEach(r => {
-      if (!uniqueReleases.has(r.version) || r.isTelegramTag) {
-        uniqueReleases.set(r.version, r);
+    // Parse CHANGELOG.md for the full milestone roadmap (0.1.0 to 1.0.0)
+    const changelogPath = path.resolve(process.cwd(), 'CHANGELOG.md');
+    const changelogReleases = parseChangelog(changelogPath);
+    console.log(`📋 Parsed ${changelogReleases.length} releases from CHANGELOG.md`);
+
+    const allReleasesMap = new Map();
+    for (const cr of changelogReleases) {
+      if (ghMap.has(cr.version)) {
+        const gh = ghMap.get(cr.version);
+        cr.url = gh.html_url || '';
+        cr.date = gh.published_at ? new Date(gh.published_at).toISOString().split('T')[0] : cr.date;
       }
-    });
-    converted = Array.from(uniqueReleases.values());
+      allReleasesMap.set(cr.version, cr);
+    }
+
+    // Include any GitHub releases not in CHANGELOG.md
+    for (const [ver, gh] of ghMap.entries()) {
+      if (!allReleasesMap.has(ver)) {
+        allReleasesMap.set(ver, {
+          ...convertRelease(gh),
+          version: ver
+        });
+      }
+    }
+
+    let converted = Array.from(allReleasesMap.values());
 
     // Read local files
-    const fs = require('fs');
-    const path = require('path');
     const versionPath = path.resolve(process.cwd(), 'VERSION');
     const notesPath = path.resolve(process.cwd(), 'md_docs', 'LATEST_RELEASE.md');
     
@@ -193,7 +247,6 @@ async function main() {
       // Inject or replace the local release into the list
       const existingIndex = converted.findIndex(r => r.version === localVersion);
       if (existingIndex >= 0) {
-        // Keep the API url and date if available, but overwrite the notes
         localRelease.url = converted[existingIndex].url || '';
         localRelease.date = converted[existingIndex].date || localRelease.date;
         converted[existingIndex] = localRelease;

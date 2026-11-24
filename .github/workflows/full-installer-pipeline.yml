@@ -5,6 +5,8 @@ on:
     paths:
       - 'VERSION'
       - '.github/workflows/full-installer-pipeline.yml'
+      - 'CHANGELOG.md'
+      - 'scripts/**'
   workflow_dispatch:
     inputs:
       release_tag:
