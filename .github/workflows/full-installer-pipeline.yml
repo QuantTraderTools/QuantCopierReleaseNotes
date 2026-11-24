@@ -7,6 +7,10 @@ on:
       - '.github/workflows/full-installer-pipeline.yml'
       - 'CHANGELOG.md'
       - 'scripts/**'
+      - 'components/**'
+      - 'config/**'
+      - 'lib/**'
+      - 'firebase.json'
   workflow_dispatch:
     inputs:
       release_tag:

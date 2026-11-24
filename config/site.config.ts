@@ -53,7 +53,7 @@ export const siteConfig = {
   releases: {
     perPage: 10,
     showPrerelease: false,
-    sortBy: 'date' as const, // 'date' | 'version'
+    sortBy: 'version' as const, // 'date' | 'version'
     sortOrder: 'desc' as const, // 'asc' | 'desc'
   },
 

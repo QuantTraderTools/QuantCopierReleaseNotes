@@ -9,6 +9,7 @@ import { Release } from '@/lib/github';
 import { releaseConfig } from '@/config/releases.config';
 import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { FormattedMarkdown } from './formatted-markdown';
 
 interface ReleaseCardProps {
   release: Release;
@@ -88,7 +89,7 @@ export function ReleaseCard({ release, isFirst }: ReleaseCardProps) {
                       {items.map((item, i) => (
                         <li key={i} className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed flex gap-3">
                           <span className={`${bulletColor} font-bold`}>•</span>
-                          <span>{item}</span>
+                          <FormattedMarkdown content={item} />
                         </li>
                       ))}
                     </ul>
