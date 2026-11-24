@@ -448,7 +448,7 @@ jobs:
       - name: Build Tauri (Windows)
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npx tauri build --ignore-version-mismatches
+        run: npx tauri build --ignore-version-mismatches --no-bundle
 
       - name: Locate and copy raw Tauri UI executable
         shell: pwsh
@@ -514,10 +514,13 @@ jobs:
             $found = Get-ChildItem -Path $p -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($found) { $installer = $found; break }
           }
-          if (-not $installer) { Write-Error "Tauri installer not found"; exit 1 }
-          echo "TAURI_INSTALLER=$($installer.FullName)" >> $env:GITHUB_OUTPUT
-          echo "TAURI_INSTALLER_NAME=$($installer.Name)" >> $env:GITHUB_OUTPUT
-          Write-Host "Tauri installer: $($installer.FullName)"
+          if ($installer) {
+            echo "TAURI_INSTALLER=$($installer.FullName)" >> $env:GITHUB_OUTPUT
+            echo "TAURI_INSTALLER_NAME=$($installer.Name)" >> $env:GITHUB_OUTPUT
+            Write-Host "Tauri installer: $($installer.FullName)"
+          } else {
+            Write-Host "No separate Tauri bundle needed; Inno Setup will build final installer"
+          }
 
       # ------------------------------
       # Package with Inno Setup
