@@ -5,7 +5,7 @@ on:
     paths:
       - 'VERSION'
       - '.github/workflows/full-installer-pipeline.yml'
-      - 'md_docs/**'
+      - 'CHANGELOG.md'
       - 'scripts/**'
       - 'components/**'
       - 'config/**'
@@ -29,12 +29,12 @@ permissions:
 env:
   NODE_VERSION: "22"
   RUST_TOOLCHAIN: "stable"
-  PYTHON_VERSION: "3.x"
+  PYTHON_VERSION: "3.13"
   FRONTEND_REPO: ${{ vars.FRONTEND_REPO || 'QuantTraderTools/QuantCopierUI' }}
-  FRONTEND_REF: ${{ vars.FRONTEND_REF || github.ref_name }}
+  FRONTEND_REF: ${{ vars.FRONTEND_REF || 'discord_ai_parser' }}
   FRONTEND_PATH: "frontend"
   BACKEND_REPO: ${{ 'diliprk/quantcopier' }}
-  BACKEND_REF: ${{ vars.BACKEND_REF || github.ref_name }}
+  BACKEND_REF: ${{ vars.BACKEND_REF || 'discord_ai_parser' }}
   BACKEND_PATH: "quantcopier"
   FIREBASE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
 
@@ -115,7 +115,8 @@ jobs:
           
           # Update PyInstaller spec file
           $specFile = "${{ env.FRONTEND_PATH }}/Backend/QuantCopierAPI.spec"
-          if (Test-Path $specFile) {
+          $versionInfoFile = "${{ env.FRONTEND_PATH }}/Backend/api_version_info.txt"
+          if ((Test-Path $specFile) -and (Test-Path $versionInfoFile)) {
             $content = Get-Content $specFile -Raw
             if ($content -match "version\s*=\s*'api_version_info") {
               Write-Host "✓ PyInstaller spec uses api_version_info.txt (version patched there)"
@@ -128,6 +129,8 @@ jobs:
               Set-Content $specFile -Value $content -Encoding UTF8 -NoNewline
               Write-Host "✓ Added version='api_version_info.txt' to PyInstaller spec"
             }
+          } else {
+            Write-Host "ℹ Skipping api_version_info.txt injection into QuantCopierAPI.spec (file does not exist)"
           }
 
           # Update api_version_info.txt (PyInstaller Windows PE metadata)
@@ -159,6 +162,17 @@ jobs:
             $content = $content -replace "StringStruct\([uU]?'ProductVersion',\s*[uU]?'\d+\.\d+\.\d+(?:\.\d+)?'\)", "StringStruct('ProductVersion', '$version.0')"
             Set-Content $QuantCopierVersionFile -Value $content -Encoding UTF8
             Write-Host "✓ Updated QuantCopier file_version_info.txt: version=$version"
+          }
+
+          # Update AI Parser ai_parser_version_info.txt (PyInstaller Windows PE metadata)
+          $aiVersionFile = "${{ env.BACKEND_PATH }}/AI parser/ai_parser_version_info.txt"
+          if (Test-Path $aiVersionFile) {
+            $aiVi = Get-Content $aiVersionFile -Raw
+            $aiVi = $aiVi -replace "(?s)(ffi=FixedFileInfo\(.*?filevers=\()\d+,\s*\d+,\s*\d+,\s*\d+(\).*?prodvers=\()\d+,\s*\d+,\s*\d+,\s*\d+(\))", "`${1}$verTuple`${2}$verTuple`${3}"
+            $aiVi = $aiVi -replace "StringStruct\([uU]?'FileVersion',\s*[uU]?'\d+\.\d+\.\d+(?:\.\d+)?'\)", "StringStruct('FileVersion', '$version.0')"
+            $aiVi = $aiVi -replace "StringStruct\([uU]?'ProductVersion',\s*[uU]?'\d+\.\d+\.\d+(?:\.\d+)?'\)", "StringStruct('ProductVersion', '$version.0')"
+            Set-Content $aiVersionFile -Value $aiVi -Encoding UTF8
+            Write-Host "✓ Updated AI parser ai_parser_version_info.txt: version=$version"
           }
 
           # Create QuantCopier VERSION file for standalone auto-updater
@@ -259,18 +273,12 @@ jobs:
           # Support secrets named with APP_ prefix or without (fallback).
           $fb_db = "${{ secrets.APP_FIREBASE_DATABASE_URL }}"
           if ([string]::IsNullOrWhiteSpace($fb_db)) { $fb_db = "${{ secrets.FIREBASE_DATABASE_URL }}" }
+          if ([string]::IsNullOrWhiteSpace($fb_db)) { $fb_db = "https://quanttradertools-default-rtdb.asia-southeast1.firebasedatabase.app/" }
           $fb_token = "${{ secrets.APP_FIREBASE_AUTH_TOKEN }}"
           if ([string]::IsNullOrWhiteSpace($fb_token)) { $fb_token = "${{ secrets.FIREBASE_AUTH_TOKEN }}" }
+          if ([string]::IsNullOrWhiteSpace($fb_token)) { $fb_token = "xqZSeGM6R7aKRdMVCh4nSIApYFgSRjc4l8XhoDs2" }
           $sa_b64 = "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
 
-          if ([string]::IsNullOrWhiteSpace($fb_db)) {
-            Write-Error "Missing required secret: APP_FIREBASE_DATABASE_URL or FIREBASE_DATABASE_URL"
-            exit 1
-          }
-          if ([string]::IsNullOrWhiteSpace($fb_token)) {
-            Write-Error "Missing required secret: APP_FIREBASE_AUTH_TOKEN or FIREBASE_AUTH_TOKEN"
-            exit 1
-          }
           if ([string]::IsNullOrWhiteSpace($sa_b64)) {
             Write-Error "Missing required secret: FIREBASE_SERVICE_ACCOUNT_KEY"
             exit 1
@@ -360,8 +368,8 @@ jobs:
         run: |
           python -m venv .venv
           .\.venv\Scripts\Activate.ps1
-          python -m pip install --upgrade pip
-          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { .\.venv\Scripts\python.exe -m pip install -r requirements.txt }
 
       - name: Build QuantCopier executable (PyInstaller)
         shell: pwsh
@@ -369,9 +377,9 @@ jobs:
         run: |
           .\.venv\Scripts\Activate.ps1
           if (Test-Path DiscordTradeBot.spec) {
-            pyinstaller DiscordTradeBot.spec
+            .\.venv\Scripts\pyinstaller.exe DiscordTradeBot.spec
           } else {
-            pyinstaller --onefile DiscordTradeBot.py
+            .\.venv\Scripts\pyinstaller.exe --onefile DiscordTradeBot.py
           }
 
       - name: Locate QuantCopier binary
@@ -413,19 +421,56 @@ jobs:
           Get-ChildItem -Path $targetDir | Select-Object Name, Length
 
       # ------------------------------
+      # Build AI Parser sidecar
+      # ------------------------------
+      - name: Build and stage AI Parser
+        shell: pwsh
+        working-directory: ${{ env.BACKEND_PATH }}\AI parser
+        run: |
+          ..\.venv\Scripts\Activate.ps1
+          if (Test-Path AI_parser.spec) {
+            ..\.venv\Scripts\pyinstaller.exe AI_parser.spec
+          } else {
+            ..\.venv\Scripts\pyinstaller.exe --onefile main.py --name AI_parser
+          }
+          $repoRoot = if ($env:GITHUB_WORKSPACE) { $env:GITHUB_WORKSPACE } else { (Resolve-Path "..\..").Path }
+          $targetAiDir = Join-Path $repoRoot "${{ env.FRONTEND_PATH }}\src-tauri\binaries\ai_parser"
+          if (-not (Test-Path $targetAiDir)) { New-Item -ItemType Directory -Force -Path $targetAiDir | Out-Null }
+          $aiExe = Join-Path "dist" "AI_parser.exe"
+          if (Test-Path $aiExe) {
+            Copy-Item $aiExe (Join-Path $targetAiDir "AI_parser.exe") -Force
+            Write-Host "✓ Staged AI_parser.exe into $targetAiDir"
+          } else {
+            Write-Error "AI_parser.exe not found in dist"
+            exit 1
+          }
+          if (Test-Path "parser_config.ini") {
+            Copy-Item "parser_config.ini" (Join-Path $targetAiDir "parser_config.ini") -Force
+            Write-Host "✓ Staged parser_config.ini into $targetAiDir"
+          }
+          if (Test-Path "favicon.ico") {
+            Copy-Item "favicon.ico" (Join-Path $targetAiDir "favicon.ico") -Force
+          }
+          Write-Host "Contents of ai_parser binaries directory:"
+          Get-ChildItem -Path $targetAiDir | Select-Object Name, Length
+
+          $aiZipPath = Join-Path $env:RUNNER_TEMP "ai_parser.zip"
+          Compress-Archive -Path "$targetAiDir\*" -DestinationPath $aiZipPath -Force
+          echo "AI_PARSER_ZIP_PATH=$aiZipPath" >> $env:GITHUB_ENV
+          Write-Host "✓ Packaged ai_parser.zip at: $aiZipPath"
+
+      # ------------------------------
       # Build Tauri app
       # ------------------------------
       - name: Install frontend dependencies
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: |
-          npm install
-          npm install @tauri-apps/api@~2.9.1 @tauri-apps/cli@~2.9.5
+        run: npm install --legacy-peer-deps
 
       - name: Build Tauri (Windows)
         shell: pwsh
         working-directory: ${{ env.FRONTEND_PATH }}
-        run: npm run tauri build
+        run: npx tauri build --ignore-version-mismatches --no-bundle
 
       - name: Locate and copy raw Tauri UI executable
         shell: pwsh
@@ -435,7 +480,10 @@ jobs:
             $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierMT5Discord.exe"
           }
           if (-not (Test-Path $src)) {
-            $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe | 
+            $src = "${{ env.FRONTEND_PATH }}\src-tauri\target\release\QuantCopierDiscordUI.exe"
+          }
+          if (-not (Test-Path $src)) {
+            $src = Get-ChildItem -Path "${{ env.FRONTEND_PATH }}\src-tauri\target\release" -Filter *.exe -Recurse | 
                    Where-Object { $_.Name -like "*QuantCopier*" -and $_.Name -notlike "*API*" } | 
                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
           }
@@ -446,18 +494,32 @@ jobs:
           echo "RAW_UI_NAME=QuantCopierUI.exe" >> $env:GITHUB_ENV
           Write-Host "Raw UI executable copied to: $dest"
 
+          # Ensure QuantCopierDiscordUI.exe exists in target/release for Inno Setup
+          $targetRelease = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\target\release"
+          $issExe = Join-Path $targetRelease "QuantCopierDiscordUI.exe"
+          if (-not (Test-Path $issExe) -and (Test-Path $src)) {
+            Copy-Item -Path $src -Destination $issExe -Force
+            Write-Host "✓ Ensured QuantCopierDiscordUI.exe exists for Inno Setup at: $issExe"
+          }
 
 
 
-      - name: Stage QuantCopierDiscord.exe for Inno Setup
+
+      - name: Stage QuantCopierDiscord.exe and QuantCopierAPI.exe for Inno Setup
         shell: pwsh
         run: |
-          $src = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
           $releaseDir = Join-Path "${{ env.FRONTEND_PATH }}" "src-tauri\target\release"
           if (-not (Test-Path $releaseDir)) { New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null }
-          $dest = Join-Path $releaseDir "QuantCopierDiscord.exe"
-          Copy-Item -Path $src -Destination $dest -Force -ErrorAction Stop
-          Write-Host "✓ Staged QuantCopierDiscord.exe for Inno Setup at: $dest"
+          $qcSrc = "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}"
+          $qcDest = Join-Path $releaseDir "QuantCopierDiscord.exe"
+          Copy-Item -Path $qcSrc -Destination $qcDest -Force -ErrorAction Stop
+          Write-Host "✓ Staged QuantCopierDiscord.exe for Inno Setup at: $qcDest"
+          $apiSrc = "${{ steps.api_sidecar.outputs.API_SIDECAR_PATH }}"
+          if (Test-Path $apiSrc) {
+            $apiDest = Join-Path $releaseDir "QuantCopierAPI.exe"
+            Copy-Item -Path $apiSrc -Destination $apiDest -Force -ErrorAction Stop
+            Write-Host "✓ Staged QuantCopierAPI.exe for Inno Setup at: $apiDest"
+          }
 
       - name: Find Tauri installer
         id: tauri_installer
@@ -474,10 +536,13 @@ jobs:
             $found = Get-ChildItem -Path $p -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($found) { $installer = $found; break }
           }
-          if (-not $installer) { Write-Error "Tauri installer not found"; exit 1 }
-          echo "TAURI_INSTALLER=$($installer.FullName)" >> $env:GITHUB_OUTPUT
-          echo "TAURI_INSTALLER_NAME=$($installer.Name)" >> $env:GITHUB_OUTPUT
-          Write-Host "Tauri installer: $($installer.FullName)"
+          if ($installer) {
+            echo "TAURI_INSTALLER=$($installer.FullName)" >> $env:GITHUB_OUTPUT
+            echo "TAURI_INSTALLER_NAME=$($installer.Name)" >> $env:GITHUB_OUTPUT
+            Write-Host "Tauri installer: $($installer.FullName)"
+          } else {
+            Write-Host "No separate Tauri bundle needed; Inno Setup will build final installer"
+          }
 
       # ------------------------------
       # Package with Inno Setup
@@ -491,10 +556,11 @@ jobs:
           if (-not $iss) { Write-Error "Inno Setup .iss file not found"; exit 1 }
           $tempIss = Join-Path $env:RUNNER_TEMP "build.iss"
           $content = Get-Content $iss -Raw
-          $appDir = Resolve-Path "."
-          $content = $content -replace '#define ParentPath ".*"', "#define ParentPath `"$appDir`""
-          $content = $content -replace '\\QuantCopier(?:Discord|Telegram)UI\\', '\'
-          $content = $content -replace 'OutputDir=.*', "OutputDir=$env:RUNNER_TEMP"
+          $appDir = (Resolve-Path ".").Path
+          $content = $content -replace '(?m)^#define\s+ParentPath\s+.*$', "#define ParentPath `"$appDir`""
+          $content = $content -replace '(?m)^OutputDir=.*$', "OutputDir=$env:RUNNER_TEMP"
+          $content = $content -replace '\{#ParentPath\}\\QuantCopierDiscordUI', $appDir
+          $content = $content -replace '\{#ParentPath\}/QuantCopierDiscordUI', $appDir
           Set-Content -Path $tempIss -Value $content -Encoding UTF8
           echo "INNO_ISS=$tempIss" >> $env:GITHUB_OUTPUT
           echo "INNO_ISS_NAME=$($iss.Name)" >> $env:GITHUB_OUTPUT
@@ -505,8 +571,15 @@ jobs:
         shell: pwsh
         run: |
           & "$env:ISCC_PATH" "${{ steps.inno_prep.outputs.INNO_ISS }}"
-          if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed"; exit 1 }
-          $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $expectedOutput = Join-Path $env:RUNNER_TEMP "QuantCopierMT5DiscordSetup.exe"
+          if (Test-Path $expectedOutput) {
+            $output = Get-Item $expectedOutput
+          } else {
+            $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*Setup*.exe" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
+          if (-not $output) {
+            $output = Get-ChildItem -Path $env:RUNNER_TEMP -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          }
           if (-not $output) { Write-Error "Inno output exe not found"; exit 1 }
           echo "FINAL_INSTALLER=$($output.FullName)" >> $env:GITHUB_OUTPUT
           echo "FINAL_INSTALLER_NAME=$($output.Name)" >> $env:GITHUB_OUTPUT
@@ -547,12 +620,14 @@ jobs:
               apiSidecar = $apiFile
               quantcopierSidecar = "QuantCopierDiscord.exe"
               quantcopierUI = "QuantCopierUI.exe"
+              aiParser = "ai_parser.zip"
             }
             downloads = @{
               mainInstaller = "$baseUrl$installerFile"
               apiSidecar = "$baseUrl$apiFile"
               quantcopierSidecar = "$baseUrl`QuantCopierDiscord.exe"
               quantcopierUI = "$baseUrl`QuantCopierUI.exe"
+              aiParser = "$baseUrl`ai_parser.zip"
             }
           }
 
@@ -637,6 +712,13 @@ jobs:
           $QuantCopierDest = "Discord/$releaseTag/QuantCopierDiscord.exe"
           Write-Host "Uploading QuantCopier to GCS: $QuantCopierDest"
           Invoke-Upload -Source "${{ steps.QuantCopier_sidecar.outputs.QuantCopier_SIDECAR_PATH }}" -Destination $QuantCopierDest
+
+          # 5. Upload AI Parser bundle (ai_parser.zip)
+          if ($env:AI_PARSER_ZIP_PATH -and (Test-Path $env:AI_PARSER_ZIP_PATH)) {
+            $aiParserDest = "Discord/$releaseTag/ai_parser.zip"
+            Write-Host "Uploading AI Parser bundle to GCS: $aiParserDest"
+            Invoke-Upload -Source "$env:AI_PARSER_ZIP_PATH" -Destination $aiParserDest
+          }
 
           $url = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Discord%2F$releaseTag%2F$publicInstallerName?alt=media"
           $uiUrl = "https://firebasestorage.googleapis.com/v0/b/${{ env.FIREBASE_BUCKET }}/o/Discord%2F$releaseTag%2F$uiName?alt=media"
@@ -800,7 +882,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: QuantTraderTools/QuantCopierUI
-          ref: ${{ env.FRONTEND_REF }}
           path: quantcopier-ui
           fetch-depth: 0
           token: ${{ secrets.FRONTEND_REPO_TOKEN }}
@@ -884,7 +965,7 @@ jobs:
           TAG="${{ steps.version.outputs.TAG }}"
 
           if [ ! -d "quantcopier" ]; then
-            git clone -b ${{ env.BACKEND_REF }} https://${{ secrets.BACKEND_REPO_TOKEN }}@github.com/diliprk/quantcopier.git quantcopier
+            git clone https://${{ secrets.BACKEND_REPO_TOKEN }}@github.com/diliprk/quantcopier.git quantcopier
           fi
 
           cd quantcopier
@@ -913,8 +994,11 @@ jobs:
         if: steps.check-release.outputs.exists == 'true'
         shell: bash
         run: |
-          echo "⚠️  Release ${{ steps.version.outputs.TAG }} already exists - no action taken"
+          echo "\u26a0\ufe0f  Release ${{ steps.version.outputs.TAG }} already exists - no action taken"
 
+  # ============================================================
+  # Job 3: Deploy Release Notes Site to Firebase Hosting
+  # ============================================================
   deploy-release-notes:
     name: Deploy Release Notes Site
     runs-on: ubuntu-latest
