@@ -559,6 +559,8 @@ jobs:
           $appDir = (Resolve-Path ".").Path
           $content = $content -replace '(?m)^#define\s+ParentPath\s+.*$', "#define ParentPath `"$appDir`""
           $content = $content -replace '(?m)^OutputDir=.*$', "OutputDir=$env:RUNNER_TEMP"
+          $content = $content -replace '\{#ParentPath\}\\\{#ProjectFolder\}', $appDir
+          $content = $content -replace '\{#ParentPath\}/\{#ProjectFolder\}', $appDir
           $content = $content -replace '\{#ParentPath\}\\QuantCopierDiscordUI', $appDir
           $content = $content -replace '\{#ParentPath\}/QuantCopierDiscordUI', $appDir
           Set-Content -Path $tempIss -Value $content -Encoding UTF8
