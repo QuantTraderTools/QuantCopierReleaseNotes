@@ -48,12 +48,12 @@ jobs:
       # Checkout both repositories
       # ------------------------------
       - name: Checkout workflow repo (release orchestrator)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Checkout frontend app
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.FRONTEND_REPO }}
           ref: ${{ env.FRONTEND_REF }}
@@ -62,7 +62,7 @@ jobs:
           token: ${{ secrets.FRONTEND_REPO_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Checkout backend app (quantcopier)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.BACKEND_REPO }}
           ref: ${{ env.BACKEND_REF }}
@@ -209,7 +209,7 @@ jobs:
 
       # Setup toolchains
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -226,7 +226,7 @@ jobs:
           cache-on-failure: false
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -335,7 +335,7 @@ jobs:
           Write-Host "Normalized API sidecar: $dest"
 
       - name: Upload API sidecar as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-sidecar-v${{ steps.version.outputs.VERSION }}
           path: ${{ env.NORMALIZED_API_SIDECAR_PATH }}
@@ -707,7 +707,7 @@ jobs:
       # Upload artifact
       # ------------------------------
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer-${{ env.RELEASE_TAG || github.event.release.tag_name }}
           path: ${{ env.NORMALIZED_INSTALLER_PATH }}
@@ -760,7 +760,7 @@ jobs:
 
     steps:
       - name: Checkout QuantCopierReleaseNotes repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -797,7 +797,7 @@ jobs:
           echo "✅ Extracted version: $VERSION"
 
       - name: Checkout QuantCopierUI repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: QuantTraderTools/QuantCopierUI
           ref: ${{ env.FRONTEND_REF }}
@@ -836,7 +836,7 @@ jobs:
 
       - name: Create GitHub Release on QuantCopierUI
         if: steps.check-release.outputs.exists == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.FRONTEND_REPO_TOKEN }}
           script: |
@@ -923,10 +923,10 @@ jobs:
 
     steps:
       - name: Checkout Release Notes repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
