@@ -18,3 +18,6 @@
 - Resolved socket binding race conditions during microservice re-initialization.
 - Fixed handling of multiline and symbol-delimited channel replies in Discord events.
 - Fixed Inno Setup path bindings and installer staging for AI parser binaries.
+- Fixed app reopen login flow to automatically proceed to the Home screen once onboarding is complete instead of prompting for login again.
+- Optimized MT5 onboarding setup to wait for backend readiness, reuse cached validation data, eliminate duplicate account fetches, and remove false 5-second timeout error popups.
+- Deduplicated concurrent backend data fetches and prevented startup redirect loops between login and onboarding.

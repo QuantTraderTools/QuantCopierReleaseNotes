@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 - Resolved socket binding race conditions during microservice re-initialization.
 - Fixed handling of multiline and symbol-delimited channel replies in Discord events.
+- Fixed app reopen login flow to automatically proceed to the Home screen once onboarding is complete instead of prompting for login again.
+- Optimized MT5 onboarding setup (`Step1MT5`) to wait for sidecar readiness, reuse cached validation data, eliminate duplicate account fetches, and remove false 5-second timeout error popups.
+- Fixed duplicate concurrent API requests in `BackendDataContext` and prevented startup redirect loops between `/` and `/onboarding`.
 
 ---
 
