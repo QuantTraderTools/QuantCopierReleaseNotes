@@ -274,9 +274,11 @@ jobs:
           $fb_db = "${{ secrets.APP_FIREBASE_DATABASE_URL }}"
           if ([string]::IsNullOrWhiteSpace($fb_db)) { $fb_db = "${{ secrets.FIREBASE_DATABASE_URL }}" }
           if ([string]::IsNullOrWhiteSpace($fb_db)) { $fb_db = "https://quanttradertools-default-rtdb.asia-southeast1.firebasedatabase.app/" }
-          $fb_token = "${{ secrets.APP_FIREBASE_AUTH_TOKEN }}"
-          if ([string]::IsNullOrWhiteSpace($fb_token)) { $fb_token = "${{ secrets.FIREBASE_AUTH_TOKEN }}" }
-          if ([string]::IsNullOrWhiteSpace($fb_token)) { $fb_token = "xqZSeGM6R7aKRdMVCh4nSIApYFgSRjc4l8XhoDs2" }
+          $license_pw = "${{ secrets.LICENSE_CHECK_PASSWORD }}"
+          if ([string]::IsNullOrWhiteSpace($license_pw)) {
+            Write-Error "Missing required secret: LICENSE_CHECK_PASSWORD"
+            exit 1
+          }
           $sa_b64 = "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}"
 
           if ([string]::IsNullOrWhiteSpace($sa_b64)) {
@@ -292,7 +294,8 @@ jobs:
           $envContent = @(
             "FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-credentials.json",
             "FIREBASE_DATABASE_URL=$fb_db",
-            "FIREBASE_AUTH_TOKEN=$fb_token",
+            "LICENSE_PROXY_URL=https://us-central1-quanttradertools.cloudfunctions.net/checkLicense",
+            "LICENSE_CHECK_PASSWORD=$license_pw",
             "FIREBASE_SERVICE_ACCOUNT_KEY=$sa_json"
           ) -join "`n"
           Set-Content -Path ".env" -Value $envContent.Trim() -Encoding UTF8 -NoNewline
@@ -374,8 +377,15 @@ jobs:
       - name: Build QuantCopier executable (PyInstaller)
         shell: pwsh
         working-directory: ${{ env.BACKEND_PATH }}
+        env:
+          LICENSE_CHECK_PASSWORD: ${{ secrets.LICENSE_CHECK_PASSWORD }}
         run: |
           .\.venv\Scripts\Activate.ps1
+          if ([string]::IsNullOrWhiteSpace($env:LICENSE_CHECK_PASSWORD)) {
+            Write-Error "Missing required secret: LICENSE_CHECK_PASSWORD"
+            exit 1
+          }
+          "LICENSE_PROXY_URL=https://us-central1-quanttradertools.cloudfunctions.net/checkLicense`nLICENSE_CHECK_PASSWORD=$($env:LICENSE_CHECK_PASSWORD)" | Set-Content -Path ".env" -Encoding UTF8 -NoNewline
           if (Test-Path DiscordTradeBot.spec) {
             .\.venv\Scripts\pyinstaller.exe DiscordTradeBot.spec
           } else {
