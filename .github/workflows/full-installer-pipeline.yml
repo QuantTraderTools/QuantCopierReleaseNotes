@@ -637,9 +637,9 @@ jobs:
             downloads = @{
               mainInstaller = "$baseUrl$installerFile"
               apiSidecar = "$baseUrl$apiFile"
-              quantcopierSidecar = "$baseUrl`QuantCopierDiscord.exe"
-              quantcopierUI = "$baseUrl`QuantCopierUI.exe"
-              aiParser = "$baseUrl`ai_parser.zip"
+              quantcopierSidecar = "${baseUrl}QuantCopierDiscord.exe"
+              quantcopierUI = "${baseUrl}QuantCopierUI.exe"
+              aiParser = "${baseUrl}ai_parser.zip"
             }
           }
 
